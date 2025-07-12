@@ -13,9 +13,12 @@ type Product = {
 
 async function getProducts(): Promise<Product[]> {
   try {
-    const res = await fetch("http://localhost:3000/api/produk", {
-      cache: "no-store",
-    });
+    const res = await fetch(
+      "https://zh8r77hb-3000.asse.devtunnels.ms/api/produk",
+      {
+        cache: "no-store",
+      }
+    );
     if (!res.ok) {
       throw new Error("Gagal mengambil data produk dari server");
     }

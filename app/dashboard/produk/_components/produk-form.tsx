@@ -108,8 +108,8 @@ export function ProdukForm({
     }
 
     const apiUrl = initialData?.id_produk
-      ? `http://localhost:3000/api/produk/${initialData.id_produk}`
-      : "http://localhost:3000/api/produk";
+      ? `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${initialData.id_produk}`
+      : "https://zh8r77hb-3000.asse.devtunnels.ms/api/produk";
     const method = initialData?.id_produk ? "PUT" : "POST";
 
     try {

@@ -73,7 +73,7 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
 
     try {
       const response = await fetch(
-        `http://localhost:3000/api/produk/${productId}`,
+        `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${productId}`,
         { method: "DELETE" }
       );
       if (!response.ok) {
@@ -143,7 +143,7 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
                     <img
                       src={
                         product.upload_gambar
-                          ? `http://localhost:3000/${product.upload_gambar}`
+                          ? `https://zh8r77hb-3000.asse.devtunnels.ms/${product.upload_gambar}`
                           : "https://via.placeholder.com/64"
                       }
                       alt={product.nama_produk}

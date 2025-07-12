@@ -22,6 +22,7 @@ type Kepingan = {
   uuid_random: string;
   produk_id: number;
   tgl_produksi: string;
+  kode_validasi: string;
 };
 
 interface GenerateQrModalProps {
@@ -30,7 +31,7 @@ interface GenerateQrModalProps {
   onSuccess: () => void;
   produkId: number | null;
   namaProduk: string;
-  gramasiProduk: string; // <-- TERIMA PROP BARU
+  gramasiProduk: string;
 }
 
 export function GenerateQrModal({
@@ -45,6 +46,8 @@ export function GenerateQrModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [generatedKepingan, setGeneratedKepingan] = useState<Kepingan[]>([]);
+
+  const WEBSITE_URL = "https://silverium.co.id/verif";
 
   const handleClose = () => {
     setGeneratedKepingan([]);
@@ -85,15 +88,11 @@ export function GenerateQrModal({
     }
   };
 
-  // ====================================================================
-  // FUNGSI INI KITA UBAH SECARA SIGNIFIKAN
-  // ====================================================================
   const handleDownloadZip = async () => {
     if (generatedKepingan.length === 0) return;
     setIsLoading(true);
 
     try {
-      // 1. Membuat format waktu YYYYMMDD_HHMMSS
       const now = new Date();
       const pad = (num: number) => String(num).padStart(2, "0");
       const timestamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(
@@ -101,26 +100,72 @@ export function GenerateQrModal({
       )}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(
         now.getSeconds()
       )}`;
-
-      // 2. Membersihkan nama produk dan gramasi untuk nama file
       const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
       const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
-
-      // 3. Membuat nama file ZIP yang baru dan deskriptif
       const fileName = `QR_Codes_${cleanNama}_${cleanGramasi}_${timestamp}.zip`;
 
       const zip = new JSZip();
+
+      const mainCanvas = document.createElement("canvas");
+      const ctx = mainCanvas.getContext("2d");
+      if (!ctx) {
+        throw new Error("Tidak bisa membuat canvas");
+      }
+
       for (const kepingan of generatedKepingan) {
-        const qrCodeDataURL = await QRCode.toDataURL(kepingan.uuid_random, {
-          errorCorrectionLevel: "H",
-          width: 512,
-        });
-        const blob = await (await fetch(qrCodeDataURL)).blob();
-        zip.file(`${kepingan.uuid_random}.png`, blob);
+        if (kepingan && kepingan.uuid_random) {
+          const qrContent = `${WEBSITE_URL}/${kepingan.uuid_random}`;
+          const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
+          const validationCode = kepingan.kode_validasi;
+
+          // --- PERUBAHAN UTAMA UNTUK LAYOUT LANDSCAPE ---
+          const qrSize = 400;
+          const padding = 30;
+          const textSideWidth = 400; // Lebar area untuk teks
+
+          // Atur ukuran canvas menjadi landscape
+          mainCanvas.width = qrSize + textSideWidth + padding * 3;
+          mainCanvas.height = qrSize + padding * 2;
+
+          // Latar belakang putih
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
+
+          // Gambar QR Code di sisi kiri
+          const qrCanvas = document.createElement("canvas");
+          await QRCode.toCanvas(qrCanvas, qrContent, {
+            errorCorrectionLevel: "H",
+            width: qrSize,
+            margin: 1,
+          });
+          ctx.drawImage(qrCanvas, padding, padding);
+
+          // Gambar Teks di sisi kanan
+          ctx.fillStyle = "black";
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+
+          // Tentukan titik tengah area teks di sebelah kanan
+          const textCenterX = qrSize + padding * 2 + textSideWidth / 2;
+          const textCenterY = mainCanvas.height / 2;
+
+          // Teks Kode Validasi (lebih besar)
+          ctx.font = "bold 80px Arial";
+          ctx.fillText(validationCode, textCenterX, textCenterY - 30); // Posisi sedikit ke atas
+
+          // Teks UUID Slice (lebih kecil)
+          ctx.font = "60px monospace";
+          ctx.fillText(uuidSlice, textCenterX, textCenterY + 50); // Posisi di bawah kode validasi
+
+          const dataUrl = mainCanvas.toDataURL("image/png");
+          const blob = await (await fetch(dataUrl)).blob();
+
+          zip.file(`qrcode_${uuidSlice}_${validationCode}.png`, blob);
+        }
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, fileName); // 4. Gunakan nama file baru
+      saveAs(zipBlob, fileName);
 
       onSuccess();
       handleClose();
@@ -143,7 +188,7 @@ export function GenerateQrModal({
             Masukkan jumlah QR code unik yang ingin Anda buat untuk produk ini.
           </DialogDescription>
         </DialogHeader>
-        {/* ... sisa dari JSX tidak berubah ... */}
+
         {generatedKepingan.length === 0 ? (
           <div className="grid gap-4 py-4">
             <div className="grid grid-cols-4 items-center gap-4">
@@ -156,7 +201,7 @@ export function GenerateQrModal({
                 min="1"
                 max="100"
                 value={jumlah}
-                onChange={(e) => setJumlah(parseInt(e.target.value))}
+                onChange={(e) => setJumlah(parseInt(e.target.value) || 1)}
                 className="col-span-3"
               />
             </div>
@@ -169,11 +214,25 @@ export function GenerateQrModal({
         ) : (
           <div className="py-4">
             <h4 className="font-semibold mb-2">
-              {generatedKepingan.length} QR Code Berhasil Dibuat!
+              {generatedKepingan.length} Kode Berhasil Dibuat!
             </h4>
-            <div className="max-h-40 overflow-y-auto rounded-md border p-2 text-xs font-mono">
+            <div className="max-h-48 overflow-y-auto rounded-md border p-2 text-xs font-mono">
+              <div className="grid grid-cols-2 gap-x-4 font-bold border-b pb-1 mb-1">
+                <span>URL Preview</span>
+                <span className="text-right">Kode Validasi</span>
+              </div>
               {generatedKepingan.map((k) => (
-                <div key={k.uuid_random}>{k.uuid_random}</div>
+                <div
+                  key={k.uuid_random}
+                  className="grid grid-cols-2 gap-x-4 items-center py-1"
+                >
+                  <span className="truncate">
+                    {`${WEBSITE_URL}/${k.uuid_random.substring(0, 8)}...`}
+                  </span>
+                  <span className="text-right font-bold text-blue-600 bg-blue-100 px-2 py-0.5 rounded">
+                    {k.kode_validasi}
+                  </span>
+                </div>
               ))}
             </div>
             {error && (
@@ -181,6 +240,7 @@ export function GenerateQrModal({
             )}
           </div>
         )}
+
         <DialogFooter>
           {generatedKepingan.length === 0 ? (
             <Button onClick={handleGenerate} disabled={isLoading}>

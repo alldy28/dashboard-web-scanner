@@ -21,6 +21,8 @@ export default function DashboardLayout({
               Produk
             </Button>
           </Link>
+          <Link href="/dashboard/kepingan"><Button variant="ghost" className="w-full justify-start">List Kepingan</Button></Link>
+          <Link href="/dashboard/histori"><Button variant="ghost" className="w-full justify-start">Histori Scanner</Button></Link>
         </nav>
       </aside>
       <main className="flex-1 p-6">{children}</main>
