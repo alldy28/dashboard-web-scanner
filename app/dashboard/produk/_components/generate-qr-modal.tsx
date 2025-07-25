@@ -47,7 +47,7 @@ export function GenerateQrModal({
   const [error, setError] = useState<string | null>(null);
   const [generatedKepingan, setGeneratedKepingan] = useState<Kepingan[]>([]);
 
-  const WEBSITE_URL = "https://silverium.co.id/verif";
+  const WEBSITE_URL = "https://zh8r77hb-3001.asse.devtunnels.ms/verif";
 
   const handleClose = () => {
     setGeneratedKepingan([]);
@@ -66,11 +66,21 @@ export function GenerateQrModal({
     setGeneratedKepingan([]);
 
     try {
+      // PERBAIKAN: Ambil token dari localStorage
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        throw new Error("Sesi admin tidak valid. Silakan login kembali.");
+      }
+
       const response = await fetch(
-        `http://localhost:3000/api/produk/${produkId}/generate-qr`,
+        `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${produkId}/generate-qr`,
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            // PERBAIKAN: Sertakan token di header
+            Authorization: `Bearer ${token}`,
+          },
           body: JSON.stringify({ jumlah }),
         }
       );

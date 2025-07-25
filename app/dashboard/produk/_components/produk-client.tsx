@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { PlusCircle, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -29,12 +30,13 @@ import {
 import { ProdukForm } from "./produk-form";
 import { GenerateQrModal } from "./generate-qr-modal";
 
-// Tipe data untuk produk
+// Tipe data untuk produk yang lengkap
 type Product = {
   id_produk: number;
   nama_produk: string;
   series_produk: string;
   gramasi_produk: string;
+  fineness: string;
   harga_produk: string;
   tahun_pembuatan: number;
   upload_gambar?: string | null;
@@ -72,9 +74,19 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
       return;
 
     try {
+      const token = localStorage.getItem("admin_token");
+      if (!token) {
+        throw new Error("Sesi admin tidak valid. Silakan login kembali.");
+      }
+
       const response = await fetch(
         `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${productId}`,
-        { method: "DELETE" }
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
       if (!response.ok) {
         const errorData = await response.json();
@@ -132,6 +144,7 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Series</TableHead>
                 <TableHead>Gramasi</TableHead>
+                <TableHead>Fineness</TableHead>
                 <TableHead className="text-right">Harga</TableHead>
                 <TableHead className="text-center">Aksi</TableHead>
               </TableRow>
@@ -140,14 +153,17 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
               {initialProducts.map((product) => (
                 <TableRow key={product.id_produk}>
                   <TableCell>
-                    <img
+                    <Image
                       src={
                         product.upload_gambar
                           ? `https://zh8r77hb-3000.asse.devtunnels.ms/${product.upload_gambar}`
                           : "https://via.placeholder.com/64"
                       }
                       alt={product.nama_produk}
+                      width={64}
+                      height={64}
                       className="h-16 w-16 object-cover rounded-md"
+                      unoptimized={true}
                     />
                   </TableCell>
                   <TableCell className="font-medium">
@@ -156,6 +172,7 @@ export function ProdukClient({ initialProducts }: ProdukClientProps) {
                   <TableCell>{product.nama_produk}</TableCell>
                   <TableCell>{product.series_produk}</TableCell>
                   <TableCell>{product.gramasi_produk}</TableCell>
+                  <TableCell>{product.fineness}</TableCell>
                   <TableCell className="text-right">
                     {new Intl.NumberFormat("id-ID", {
                       style: "currency",

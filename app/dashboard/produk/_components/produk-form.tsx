@@ -13,12 +13,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Definisikan tipe data untuk produk
+// Definisikan tipe data untuk produk, termasuk fineness
 type Product = {
   id_produk?: number;
   nama_produk: string;
   series_produk: string;
   gramasi_produk: string;
+  fineness: string;
   harga_produk: string;
   tahun_pembuatan: number;
   upload_gambar?: string | null;
@@ -38,11 +39,12 @@ export function ProdukForm({
   onSuccess,
   initialData,
 }: ProdukFormProps) {
-  // State untuk data form teks
+  // State untuk data form teks, termasuk fineness
   const [formData, setFormData] = useState({
     nama_produk: "",
     series_produk: "",
     gramasi_produk: "",
+    fineness: "",
     harga_produk: "",
     tahun_pembuatan: new Date().getFullYear(),
   });
@@ -58,6 +60,7 @@ export function ProdukForm({
         nama_produk: initialData.nama_produk,
         series_produk: initialData.series_produk,
         gramasi_produk: initialData.gramasi_produk,
+        fineness: initialData.fineness || "",
         harga_produk: String(initialData.harga_produk),
         tahun_pembuatan: initialData.tahun_pembuatan,
       });
@@ -67,6 +70,7 @@ export function ProdukForm({
         nama_produk: "",
         series_produk: "",
         gramasi_produk: "",
+        fineness: "",
         harga_produk: "",
         tahun_pembuatan: new Date().getFullYear(),
       });
@@ -94,17 +98,24 @@ export function ProdukForm({
     setIsLoading(true);
     setError(null);
 
+    // PERBAIKAN: Ambil token dari localStorage
+    const token = localStorage.getItem("admin_token"); // Ganti 'admin_token' jika Anda menggunakan key yang berbeda
+    if (!token) {
+      setError("Sesi tidak valid. Silakan login kembali.");
+      setIsLoading(false);
+      return;
+    }
+
     const data = new FormData();
     data.append("nama_produk", formData.nama_produk);
     data.append("series_produk", formData.series_produk);
     data.append("gramasi_produk", formData.gramasi_produk);
+    data.append("fineness", formData.fineness);
     data.append("harga_produk", formData.harga_produk);
     data.append("tahun_pembuatan", String(formData.tahun_pembuatan));
 
     if (selectedFile) {
       data.append("gambar", selectedFile);
-    } else if (initialData?.upload_gambar) {
-      data.append("upload_gambar", initialData.upload_gambar);
     }
 
     const apiUrl = initialData?.id_produk
@@ -116,6 +127,10 @@ export function ProdukForm({
       const response = await fetch(apiUrl, {
         method,
         body: data,
+        // PERBAIKAN: Tambahkan header Authorization
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -146,9 +161,6 @@ export function ProdukForm({
           </DialogDescription>
         </DialogHeader>
 
-        {/* ====================================================== */}
-        {/* BAGIAN JSX YANG LENGKAP DENGAN SEMUA INPUT FIELD       */}
-        {/* ====================================================== */}
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="nama_produk" className="text-right">
@@ -182,6 +194,18 @@ export function ProdukForm({
               id="gramasi_produk"
               name="gramasi_produk"
               value={formData.gramasi_produk}
+              onChange={handleChange}
+              className="col-span-3"
+            />
+          </div>
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="fineness" className="text-right">
+              Fineness
+            </Label>
+            <Input
+              id="fineness"
+              name="fineness"
+              value={formData.fineness}
               onChange={handleChange}
               className="col-span-3"
             />
@@ -230,7 +254,7 @@ export function ProdukForm({
               <div className="col-span-3">
                 <p className="text-sm text-gray-500">Gambar saat ini:</p>
                 <img
-                  src={`http://113.20.31.12:3000/${initialData.upload_gambar}`}
+                  src={`https://zh8r77hb-3000.asse.devtunnels.ms/${initialData.upload_gambar}`}
                   alt="Gambar Produk"
                   className="h-20 w-20 object-cover mt-1 rounded-md"
                 />

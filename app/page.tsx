@@ -14,20 +14,51 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const [username, setUsername] = useState("");
+  // State untuk form input
+  const [nomorTelepon, setNomorTelepon] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = () => {
-    // Logika login sederhana
-    if (username === "admin" && password === "admin") {
-      setError("");
-      // Simpan status login jika perlu (misal: di localStorage atau cookie)
-      // Untuk kesederhanaan, kita langsung arahkan
-      router.push("/dashboard");
-    } else {
-      setError("Username atau password salah!");
+  // Handler untuk proses login
+  const handleLogin = async () => {
+    setIsLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch("https://zh8r77hb-3000.asse.devtunnels.ms/api/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nomor_telepon: nomorTelepon,
+          password: password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Login gagal.");
+      }
+
+      // Jika login berhasil, simpan token ke localStorage
+      if (data.token) {
+        localStorage.setItem("admin_token", data.token);
+        router.push("/dashboard"); // Arahkan ke dashboard
+      } else {
+        throw new Error("Token tidak diterima dari server.");
+      }
+    } catch (err: unknown) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Terjadi kesalahan tidak diketahui."
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -42,14 +73,15 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="nomor_telepon">Nomor Telepon</Label>
             <Input
-              id="username"
+              id="nomor_telepon"
               type="text"
-              placeholder="default: admin"
+              placeholder="Masukkan nomor telepon admin"
               required
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
+              value={nomorTelepon}
+              onChange={(e) => setNomorTelepon(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           <div className="grid gap-2">
@@ -57,15 +89,16 @@ export default function LoginPage() {
             <Input
               id="password"
               type="password"
-              placeholder="default: admin"
+              placeholder="Masukkan password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              disabled={isLoading}
             />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <Button onClick={handleLogin} className="w-full">
-            Login
+          <Button onClick={handleLogin} className="w-full" disabled={isLoading}>
+            {isLoading ? "Memproses..." : "Login"}
           </Button>
         </CardContent>
       </Card>

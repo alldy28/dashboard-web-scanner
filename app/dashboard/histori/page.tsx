@@ -31,14 +31,52 @@ type ScanLog = {
 export default function HistoriPage() {
   const [logs, setLogs] = useState<ScanLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
-    fetch("http://localhost:3000/api/scan-history-all")
-      .then((res) => res.json())
-      .then(setLogs)
-      .catch((err) => console.error("Gagal mengambil data histori:", err))
-      .finally(() => setIsLoading(false));
+    const fetchHistory = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        // Ambil token dari localStorage
+        const token = localStorage.getItem("admin_token");
+        if (!token) {
+          throw new Error("Sesi admin tidak valid. Silakan login kembali.");
+        }
+
+        // Lakukan fetch dengan menyertakan token di header
+        const res = await fetch("https://zh8r77hb-3000.asse.devtunnels.ms/api/scan-history-all", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.error || "Gagal mengambil data histori.");
+        }
+
+        // Pastikan data yang diterima adalah array
+        if (Array.isArray(data)) {
+          setLogs(data);
+        } else {
+          throw new Error("Format data yang diterima dari server salah.");
+        }
+      } catch (err) {
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Terjadi kesalahan tidak diketahui.");
+        }
+        console.error("Gagal mengambil data histori:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchHistory();
   }, []);
 
   const filteredLogs = useMemo(
@@ -68,6 +106,7 @@ export default function HistoriPage() {
             onChange={(e) => setSearchTerm(e.target.value)}
             className="max-w-sm mb-4"
           />
+          {error && <p className="text-sm text-red-500 mb-4">Error: {error}</p>}
           <Table>
             <TableHeader>
               <TableRow>
@@ -85,7 +124,7 @@ export default function HistoriPage() {
                     Memuat data...
                   </TableCell>
                 </TableRow>
-              ) : (
+              ) : filteredLogs.length > 0 ? (
                 filteredLogs.map((log) => (
                   <TableRow key={log.log_id}>
                     <TableCell>{log.log_id}</TableCell>
@@ -112,6 +151,12 @@ export default function HistoriPage() {
                     </TableCell>
                   </TableRow>
                 ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Tidak ada data histori.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>

@@ -19,7 +19,7 @@ export default function KepinganPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('http://localhost:3000/api/kepingan');
+      const res = await fetch('https://zh8r77hb-3000.asse.devtunnels.ms/api/kepingan');
       if (!res.ok) throw new Error("Gagal mengambil data.");
       const kepinganData: Kepingan[] = await res.json();
       setData(kepinganData);
@@ -61,7 +61,7 @@ export default function KepinganPage() {
     if (!window.confirm(`Apakah Anda yakin ingin menghapus ${selectedRows.length} kepingan terpilih?`)) return;
 
     try {
-      const response = await fetch('http://localhost:3000/api/kepingan', {
+      const response = await fetch('https://zh8r77hb-3000.asse.devtunnels.ms/api/kepingan', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids: selectedRows }),
