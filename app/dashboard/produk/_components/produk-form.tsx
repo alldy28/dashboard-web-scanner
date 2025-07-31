@@ -4,6 +4,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Dialog,
   DialogContent,
@@ -13,7 +21,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-// Definisikan tipe data untuk produk, termasuk fineness
+// Definisikan tipe data untuk produk
 type Product = {
   id_produk?: number;
   nama_produk: string;
@@ -23,6 +31,7 @@ type Product = {
   harga_produk: string;
   tahun_pembuatan: number;
   upload_gambar?: string | null;
+  upload_audio?: string | null;
 };
 
 // Definisikan props untuk komponen form
@@ -39,7 +48,7 @@ export function ProdukForm({
   onSuccess,
   initialData,
 }: ProdukFormProps) {
-  // State untuk data form teks, termasuk fineness
+  // State untuk data form teks
   const [formData, setFormData] = useState({
     nama_produk: "",
     series_produk: "",
@@ -48,8 +57,17 @@ export function ProdukForm({
     harga_produk: "",
     tahun_pembuatan: new Date().getFullYear(),
   });
-  // State untuk file gambar yang dipilih
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+
+  // State untuk file dan pilihan audio
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [audioOption, setAudioOption] = useState("none"); // Default ke 'none'
+  const [existingAudios, setExistingAudios] = useState<string[]>([]);
+  const [selectedExistingAudio, setSelectedExistingAudio] =
+    useState<string>("");
+  const [selectedNewAudioFile, setSelectedNewAudioFile] = useState<File | null>(
+    null
+  );
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -64,6 +82,13 @@ export function ProdukForm({
         harga_produk: String(initialData.harga_produk),
         tahun_pembuatan: initialData.tahun_pembuatan,
       });
+      // Jika produk sudah punya audio, set opsi ke 'select'
+      if (initialData.upload_audio) {
+        setAudioOption("select");
+        setSelectedExistingAudio(initialData.upload_audio);
+      } else {
+        setAudioOption("none"); // Jika tidak ada audio, set ke 'none'
+      }
     } else {
       // Reset form saat mode tambah
       setFormData({
@@ -74,32 +99,58 @@ export function ProdukForm({
         harga_produk: "",
         tahun_pembuatan: new Date().getFullYear(),
       });
+      setAudioOption("none"); // Default ke 'none'
     }
-    // Selalu reset file dan error saat modal dibuka/data berubah
-    setSelectedFile(null);
+    setSelectedImageFile(null);
+    setSelectedNewAudioFile(null);
     setError(null);
   }, [initialData, isOpen]);
 
-  // Handler untuk perubahan input teks
+  // useEffect untuk mengambil daftar audio yang sudah ada
+  useEffect(() => {
+    if (isOpen) {
+      const fetchAudioFiles = async () => {
+        const token = localStorage.getItem("admin_token");
+        try {
+          const response = await fetch(
+            "https://zh8r77hb-3000.asse.devtunnels.ms/api/audio-files",
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (!response.ok) throw new Error("Gagal mengambil daftar audio.");
+          const data = await response.json();
+          setExistingAudios(data);
+        } catch (err) {
+          console.error(err);
+        }
+      };
+      fetchAudioFiles();
+    }
+  }, [isOpen]);
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Handler untuk perubahan input file
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedFile(e.target.files[0]);
+      setSelectedImageFile(e.target.files[0]);
     }
   };
 
-  // Handler untuk submit form
+  const handleAudioFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedNewAudioFile(e.target.files[0]);
+    }
+  };
+
   const handleSubmit = async () => {
     setIsLoading(true);
     setError(null);
 
-    // PERBAIKAN: Ambil token dari localStorage
-    const token = localStorage.getItem("admin_token"); // Ganti 'admin_token' jika Anda menggunakan key yang berbeda
+    const token = localStorage.getItem("admin_token");
     if (!token) {
       setError("Sesi tidak valid. Silakan login kembali.");
       setIsLoading(false);
@@ -107,15 +158,23 @@ export function ProdukForm({
     }
 
     const data = new FormData();
-    data.append("nama_produk", formData.nama_produk);
-    data.append("series_produk", formData.series_produk);
-    data.append("gramasi_produk", formData.gramasi_produk);
-    data.append("fineness", formData.fineness);
-    data.append("harga_produk", formData.harga_produk);
-    data.append("tahun_pembuatan", String(formData.tahun_pembuatan));
+    // Append data teks
+    Object.entries(formData).forEach(([key, value]) => {
+      data.append(key, String(value));
+    });
 
-    if (selectedFile) {
-      data.append("gambar", selectedFile);
+    if (selectedImageFile) {
+      data.append("gambar", selectedImageFile);
+    }
+
+    // Logika untuk mengirim audio
+    if (audioOption === "select" && selectedExistingAudio) {
+      data.append("existing_audio_path", selectedExistingAudio);
+    } else if (audioOption === "upload" && selectedNewAudioFile) {
+      data.append("audio", selectedNewAudioFile);
+    } else if (audioOption === "none") {
+      // Kirim string kosong untuk menandakan tidak ada audio
+      data.append("existing_audio_path", "");
     }
 
     const apiUrl = initialData?.id_produk
@@ -127,10 +186,7 @@ export function ProdukForm({
       const response = await fetch(apiUrl, {
         method,
         body: data,
-        // PERBAIKAN: Tambahkan header Authorization
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const errorData = await response.json();
@@ -161,7 +217,7 @@ export function ProdukForm({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-4 py-4">
+        <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="nama_produk" className="text-right">
               Nama
@@ -174,6 +230,7 @@ export function ProdukForm({
               className="col-span-3"
             />
           </div>
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="series_produk" className="text-right">
               Series
@@ -236,6 +293,7 @@ export function ProdukForm({
               className="col-span-3"
             />
           </div>
+
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="gambar" className="text-right">
               Gambar
@@ -244,11 +302,11 @@ export function ProdukForm({
               id="gambar"
               name="gambar"
               type="file"
-              onChange={handleFileChange}
+              onChange={handleImageFileChange}
               className="col-span-3"
             />
           </div>
-          {initialData?.upload_gambar && !selectedFile && (
+          {initialData?.upload_gambar && !selectedImageFile && (
             <div className="grid grid-cols-4 items-center gap-4">
               <div />
               <div className="col-span-3">
@@ -261,6 +319,84 @@ export function ProdukForm({
               </div>
             </div>
           )}
+
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label className="text-right">Audio</Label>
+            <RadioGroup
+              value={audioOption}
+              onValueChange={setAudioOption}
+              className="col-span-3 flex items-center space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="none" id="none" />
+                <Label htmlFor="none">Tidak Ada Audio</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="upload" id="upload" />
+                <Label htmlFor="upload">Upload Baru</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="select" id="select" />
+                <Label htmlFor="select">Pilih yang Ada</Label>
+              </div>
+            </RadioGroup>
+          </div>
+
+          {audioOption === "upload" && (
+            <div className="grid grid-cols-4 items-center gap-4">
+              <div />
+              <Input
+                id="audio"
+                name="audio"
+                type="file"
+                accept="audio/*"
+                onChange={handleAudioFileChange}
+                className="col-span-3"
+              />
+            </div>
+          )}
+
+          {audioOption === "select" && (
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div />
+                <Select
+                  onValueChange={setSelectedExistingAudio}
+                  value={selectedExistingAudio}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Pilih file audio..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {existingAudios.map((audioPath) => (
+                      <SelectItem key={audioPath} value={audioPath}>
+                        {audioPath.replace("uploads/", "")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedExistingAudio && (
+                <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                  <div />
+                  <div className="col-span-3">
+                    <Label className="text-xs text-muted-foreground">
+                      Pratinjau
+                    </Label>
+                    <audio
+                      controls
+                      key={selectedExistingAudio}
+                      src={`https://zh8r77hb-3000.asse.devtunnels.ms/${selectedExistingAudio}`}
+                      className="w-full mt-1 h-10"
+                    >
+                      Browser Anda tidak mendukung elemen audio.
+                    </audio>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+
           {error && (
             <p className="col-span-4 text-center text-sm text-red-500">
               {error}

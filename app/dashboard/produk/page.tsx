@@ -2,23 +2,28 @@
 
 import { ProdukClient } from "./_components/produk-client";
 
-// PERBAIKAN: Tipe data Product disesuaikan agar cocok dengan komponen client
+// PERBAIKAN: Tipe data Product disesuaikan untuk menyertakan harga_buyback
 type Product = {
   id_produk: number;
   nama_produk: string;
   series_produk: string;
   gramasi_produk: string;
-  fineness: string; // Ditambahkan agar konsisten
+  fineness: string;
   harga_produk: string;
+  harga_buyback: string | null; // PENAMBAHAN: Tipe untuk harga buyback
   tahun_pembuatan: number;
-  upload_gambar?: string | null; // Ditambahkan agar konsisten
+  upload_gambar?: string | null;
 };
 
 async function getProducts(): Promise<Product[]> {
   try {
-    const res = await fetch("https://zh8r77hb-3000.asse.devtunnels.ms/api/produk", {
-      cache: "no-store",
-    });
+    // Pastikan endpoint ini sekarang juga mengembalikan 'harga_buyback'
+    const res = await fetch(
+      "https://zh8r77hb-3000.asse.devtunnels.ms/api/produk",
+      {
+        cache: "no-store",
+      }
+    );
     if (!res.ok) {
       throw new Error("Gagal mengambil data produk dari server");
     }

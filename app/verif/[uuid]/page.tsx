@@ -1,8 +1,8 @@
 "use client"; // Diperlukan karena kita menggunakan hooks (useState, useEffect)
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react"; // useRef ditambahkan
 import Image from "next/image";
-import { useParams } from "next/navigation"; // PERBAIKAN: Impor useParams
+import { useParams } from "next/navigation";
 
 // --- Konfigurasi ---
 const API_BASE_URL = "https://zh8r77hb-3000.asse.devtunnels.ms"; // Sesuaikan jika API Anda berjalan di port lain
@@ -12,6 +12,7 @@ type ProductPreview = {
   nama_produk: string;
   upload_gambar: string | null;
   uuid_random: string;
+  upload_audio: string | null; // PENAMBAHAN: Tipe untuk audio
 };
 
 type VerificationResult = {
@@ -150,7 +151,6 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
 };
 
 // --- Komponen Utama Halaman ---
-// PERBAIKAN: Menghapus `params` dari props
 export default function VerificationPage() {
   const [view, setView] = useState<
     "loading" | "verification" | "result" | "error"
@@ -163,10 +163,11 @@ export default function VerificationPage() {
   const [validationCode, setValidationCode] = useState("");
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
-  // PERBAIKAN: Menggunakan hook useParams untuk mendapatkan parameter URL
   const params = useParams();
   const uuid = params.uuid as string;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
     if (!uuid) {
@@ -184,6 +185,16 @@ export default function VerificationPage() {
         const data: ProductPreview = await response.json();
         setProductPreview(data);
         setView("verification");
+
+        // PERBAIKAN: Siapkan audio, tapi jangan langsung diputar
+        if (data.upload_audio) {
+          const audioUrl = data.upload_audio.startsWith("http")
+            ? data.upload_audio
+            : `${API_BASE_URL}/${data.upload_audio}`;
+
+          audioRef.current = new Audio(audioUrl);
+          audioRef.current.onended = () => setIsAudioPlaying(false); // Reset state saat audio selesai
+        }
       } catch (err: unknown) {
         if (err instanceof Error) {
           setError(err.message);
@@ -195,7 +206,28 @@ export default function VerificationPage() {
     };
 
     fetchPreview();
-  }, [uuid]); // Efek ini berjalan saat uuid berubah
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
+        audioRef.current = null;
+      }
+    };
+  }, [uuid]);
+
+  const handlePlayAudio = () => {
+    if (audioRef.current) {
+      if (isAudioPlaying) {
+        audioRef.current.pause();
+        setIsAudioPlaying(false);
+      } else {
+        audioRef.current
+          .play()
+          .catch((err) => console.error("Gagal memutar audio:", err));
+        setIsAudioPlaying(true);
+      }
+    }
+  };
 
   const handleVerify = async () => {
     if (!validationCode) {
@@ -263,6 +295,47 @@ export default function VerificationPage() {
               <p className="text-sm text-gray-400 font-mono mt-2">
                 ID: {uuid.substring(0, 6).toUpperCase()}
               </p>
+              {/* PENAMBAHAN: Tombol untuk memutar audio */}
+              {productPreview.upload_audio && (
+                <button
+                  onClick={handlePlayAudio}
+                  className="mt-4 inline-flex items-center gap-2 text-sm text-[#c7a44a] hover:text-yellow-300"
+                >
+                  {isAudioPlaying ? (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-5 h-5"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0a.75.75 0 0 1 .75-.75H16.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Hentikan Audio
+                    </>
+                  ) : (
+                    <>
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        className="w-5 h-5"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      Dengarkan Audio Produk
+                    </>
+                  )}
+                </button>
+              )}
             </div>
             <div className="p-6 bg-gray-900">
               {error && (

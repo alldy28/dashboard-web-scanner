@@ -46,11 +46,14 @@ export default function HistoriPage() {
         }
 
         // Lakukan fetch dengan menyertakan token di header
-        const res = await fetch("https://zh8r77hb-3000.asse.devtunnels.ms/api/scan-history-all", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          "https://zh8r77hb-3000.asse.devtunnels.ms/api/scan-history-all",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await res.json();
 
@@ -114,13 +117,14 @@ export default function HistoriPage() {
                 <TableHead>Waktu Scan</TableHead>
                 <TableHead>User</TableHead>
                 <TableHead>Produk</TableHead>
+                <TableHead>UUID</TableHead>
                 <TableHead>Lokasi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Memuat data...
                   </TableCell>
                 </TableRow>
@@ -134,6 +138,9 @@ export default function HistoriPage() {
                     <TableCell>{log.nama_user}</TableCell>
                     <TableCell>
                       {log.nama_produk} ({log.gramasi_produk})
+                    </TableCell>
+                    <TableCell className="font-mono text-xs">
+                      {log.uuid_random}
                     </TableCell>
                     <TableCell>
                       {log.latitude && log.longitude ? (
@@ -153,7 +160,7 @@ export default function HistoriPage() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Tidak ada data histori.
                   </TableCell>
                 </TableRow>
