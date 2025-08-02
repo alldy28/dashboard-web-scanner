@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 
 // --- Konfigurasi ---
-const API_BASE_URL = "http://localhost:3000"; // Sesuaikan jika API Anda berjalan di port lain
+const API_BASE_URL = "https://apiv2.silverium.id"; // Sesuaikan jika API Anda berjalan di port lain
 
 // --- Tipe Data ---
 type ProductPreview = {

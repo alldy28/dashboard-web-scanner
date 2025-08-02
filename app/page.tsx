@@ -28,7 +28,7 @@ export default function LoginPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:3000/api/login",
+        "https://apiv2.silverium.id/api/login",
         {
           method: "POST",
           headers: {

@@ -1,6 +1,6 @@
 // lib/api.ts
 
-const API_BASE_URL = 'http://localhost:3000' // Pastikan URL ini sesuai
+const API_BASE_URL = 'https://apiv2.silverium.id' // Pastikan URL ini sesuai
 
 // Fungsi untuk mendapatkan access token baru menggunakan refresh token
 async function refreshAccessToken () {

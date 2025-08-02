@@ -191,7 +191,7 @@ export function ProdukClient() {
                       <Image
                         src={
                           product.upload_gambar
-                            ? `http://localhost:3000/${product.upload_gambar}`
+                            ? `https://apiv2.silverium.id/${product.upload_gambar}`
                             : "https://via.placeholder.com/64"
                         }
                         alt={product.nama_produk}
