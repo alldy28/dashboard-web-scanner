@@ -16,6 +16,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 type ScanLog = {
   log_id: number;
@@ -39,29 +40,9 @@ export default function HistoriPage() {
       setIsLoading(true);
       setError(null);
       try {
-        // Ambil token dari localStorage
-        const token = localStorage.getItem("admin_token");
-        if (!token) {
-          throw new Error("Sesi admin tidak valid. Silakan login kembali.");
-        }
+        // PERBAIKAN: Menggunakan apiClient yang sudah menangani otentikasi dan refresh token
+        const data = await apiClient("/api/scan-history-all");
 
-        // Lakukan fetch dengan menyertakan token di header
-        const res = await fetch(
-          "https://zh8r77hb-3000.asse.devtunnels.ms/api/scan-history-all",
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.error || "Gagal mengambil data histori.");
-        }
-
-        // Pastikan data yang diterima adalah array
         if (Array.isArray(data)) {
           setLogs(data);
         } else {

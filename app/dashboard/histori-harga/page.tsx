@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // --- Tipe Data ---
 type HargaHistori = {
@@ -28,9 +29,6 @@ type HargaHistori = {
   kolom_harga: "harga_produk" | "harga_buyback";
   tanggal_update: string;
 };
-
-// --- API Config ---
-const API_BASE_URL = "https://zh8r77hb-3000.asse.devtunnels.ms"; // Ganti dengan URL API Anda
 
 // --- Komponen Tabel Histori ---
 const HistoriTable = ({
@@ -49,7 +47,6 @@ const HistoriTable = ({
     }).format(parseFloat(value));
   };
 
-  // PERBAIKAN: Komponen ini sekarang merender tipe dan nilai penyesuaian
   const renderAdjustmentInfo = (log: HargaHistori) => {
     const value = formatCurrency(log.nilai_penyesuaian);
 
@@ -73,7 +70,6 @@ const HistoriTable = ({
         </div>
       );
     }
-    // Untuk tipe 'tetap', kita tidak menampilkan nilai penyesuaian
     return (
       <Badge variant="secondary" className="flex items-center gap-1">
         <Minus className="h-4 w-4" /> Tetap
@@ -140,21 +136,8 @@ export default function HistoriHargaPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const token = localStorage.getItem("admin_token");
-        if (!token) {
-          throw new Error("Sesi admin tidak valid. Silakan login kembali.");
-        }
-
-        const res = await fetch(`${API_BASE_URL}/api/harga-histori`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        const data = await res.json();
-        if (!res.ok) {
-          throw new Error(data.error || "Gagal mengambil data histori.");
-        }
+        // PERBAIKAN: Menggunakan apiClient yang sudah menangani refresh token
+        const data = await apiClient("/api/harga-histori");
 
         if (Array.isArray(data)) {
           setHistori(data);

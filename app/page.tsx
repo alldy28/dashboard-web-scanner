@@ -27,16 +27,19 @@ export default function LoginPage() {
     setError("");
 
     try {
-      const response = await fetch("https://zh8r77hb-3000.asse.devtunnels.ms/api/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          nomor_telepon: nomorTelepon,
-          password: password,
-        }),
-      });
+      const response = await fetch(
+        "http://localhost:3000/api/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            nomor_telepon: nomorTelepon,
+            password: password,
+          }),
+        }
+      );
 
       const data = await response.json();
 
@@ -44,9 +47,11 @@ export default function LoginPage() {
         throw new Error(data.error || "Login gagal.");
       }
 
-      // Jika login berhasil, simpan token ke localStorage
-      if (data.token) {
-        localStorage.setItem("admin_token", data.token);
+      // PERBAIKAN: Simpan accessToken dan refreshToken
+      if (data.accessToken && data.refreshToken) {
+        // Menggunakan nama yang lebih spesifik untuk token admin
+        localStorage.setItem("admin_access_token", data.accessToken);
+        localStorage.setItem("admin_refresh_token", data.refreshToken);
         router.push("/dashboard"); // Arahkan ke dashboard
       } else {
         throw new Error("Token tidak diterima dari server.");

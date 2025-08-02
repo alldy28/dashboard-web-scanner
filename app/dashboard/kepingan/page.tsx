@@ -1,4 +1,3 @@
-// app/dashboard/kepingan/page.tsx
 "use client";
 import React, { useState, useEffect, useMemo } from "react";
 import { Input } from "@/components/ui/input";
@@ -20,8 +19,9 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Trash2 } from "lucide-react";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
-// PERBAIKAN: Tambahkan pemilik_user_id ke tipe data
+// Tipe data Kepingan
 type Kepingan = {
   id_kepingan: number;
   uuid_random: string;
@@ -30,7 +30,7 @@ type Kepingan = {
   nama_produk: string;
   series_produk: string;
   gramasi_produk: string;
-  pemilik_user_id: number | null; // Ditambahkan
+  pemilik_user_id: number | null;
 };
 
 export default function KepinganPage() {
@@ -42,12 +42,8 @@ export default function KepinganPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // PENTING: Pastikan API Anda di '.../api/kepingan' sekarang mengirimkan data 'pemilik_user_id'
-      const res = await fetch(
-        "https://zh8r77hb-3000.asse.devtunnels.ms/api/kepingan"
-      );
-      if (!res.ok) throw new Error("Gagal mengambil data.");
-      const kepinganData: Kepingan[] = await res.json();
+      // PERBAIKAN: Menggunakan apiClient
+      const kepinganData: Kepingan[] = await apiClient("/api/kepingan");
       setData(kepinganData);
     } catch (err) {
       console.error("Gagal mengambil data kepingan:", err);
@@ -96,24 +92,14 @@ export default function KepinganPage() {
       return;
 
     try {
-      const token = localStorage.getItem("admin_token"); // Pastikan Anda menggunakan key token yang benar
-      if (!token) {
-        alert("Otorisasi gagal. Silakan login kembali.");
-        return;
-      }
-
-      const response = await fetch(
-        "https://zh8r77hb-3000.asse.devtunnels.ms/api/kepingan",
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ ids: selectedRows }),
-        }
-      );
-      if (!response.ok) throw new Error("Gagal menghapus kepingan.");
+      // PERBAIKAN: Menggunakan apiClient untuk menghapus
+      await apiClient("/api/kepingan", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ ids: selectedRows }),
+      });
 
       fetchData();
       setSelectedRows([]);
@@ -160,7 +146,6 @@ export default function KepinganPage() {
                     onCheckedChange={handleSelectAll}
                   />
                 </TableHead>
-                {/* PERBAIKAN: Tambahkan header untuk Pemilik */}
                 <TableHead>ID</TableHead>
                 <TableHead>UUID</TableHead>
                 <TableHead>Produk</TableHead>
@@ -175,7 +160,7 @@ export default function KepinganPage() {
                   <TableCell colSpan={7} className="h-24 text-center">
                     Memuat data...
                   </TableCell>
-                </TableRow> // colSpan disesuaikan
+                </TableRow>
               ) : (
                 filteredData.map((k) => (
                   <TableRow
@@ -205,7 +190,6 @@ export default function KepinganPage() {
                     <TableCell className="font-mono">
                       {k.kode_validasi}
                     </TableCell>
-                    {/* PERBAIKAN: Tampilkan data pemilik_user_id */}
                     <TableCell>
                       {k.pemilik_user_id ? (
                         <span className="font-medium">{k.pemilik_user_id}</span>

@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useParams } from "next/navigation";
 
 // --- Konfigurasi ---
-const API_BASE_URL = "https://zh8r77hb-3000.asse.devtunnels.ms"; // Sesuaikan jika API Anda berjalan di port lain
+const API_BASE_URL = "http://localhost:3000"; // Sesuaikan jika API Anda berjalan di port lain
 
 // --- Tipe Data ---
 type ProductPreview = {

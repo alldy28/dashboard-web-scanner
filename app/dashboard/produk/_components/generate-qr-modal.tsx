@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // Tipe data untuk kepingan yang diterima dari API
 type Kepingan = {
@@ -66,26 +67,15 @@ export function GenerateQrModal({
     setGeneratedKepingan([]);
 
     try {
-      // PERBAIKAN: Ambil token dari localStorage
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        throw new Error("Sesi admin tidak valid. Silakan login kembali.");
-      }
+      // PERBAIKAN: Menggunakan apiClient yang sudah menangani otentikasi
+      const data = await apiClient(`/api/produk/${produkId}/generate-qr`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ jumlah }),
+      });
 
-      const response = await fetch(
-        `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${produkId}/generate-qr`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            // PERBAIKAN: Sertakan token di header
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ jumlah }),
-        }
-      );
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Gagal membuat QR code.");
       setGeneratedKepingan(data.kepingan);
     } catch (err: unknown) {
       setError(
@@ -128,20 +118,16 @@ export function GenerateQrModal({
           const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
           const validationCode = kepingan.kode_validasi;
 
-          // --- PERUBAHAN UTAMA UNTUK LAYOUT LANDSCAPE ---
           const qrSize = 400;
           const padding = 30;
-          const textSideWidth = 400; // Lebar area untuk teks
+          const textSideWidth = 400;
 
-          // Atur ukuran canvas menjadi landscape
           mainCanvas.width = qrSize + textSideWidth + padding * 3;
           mainCanvas.height = qrSize + padding * 2;
 
-          // Latar belakang putih
           ctx.fillStyle = "white";
           ctx.fillRect(0, 0, mainCanvas.width, mainCanvas.height);
 
-          // Gambar QR Code di sisi kiri
           const qrCanvas = document.createElement("canvas");
           await QRCode.toCanvas(qrCanvas, qrContent, {
             errorCorrectionLevel: "H",
@@ -150,22 +136,18 @@ export function GenerateQrModal({
           });
           ctx.drawImage(qrCanvas, padding, padding);
 
-          // Gambar Teks di sisi kanan
           ctx.fillStyle = "black";
           ctx.textAlign = "center";
           ctx.textBaseline = "middle";
 
-          // Tentukan titik tengah area teks di sebelah kanan
           const textCenterX = qrSize + padding * 2 + textSideWidth / 2;
           const textCenterY = mainCanvas.height / 2;
 
-          // Teks Kode Validasi (lebih besar)
           ctx.font = "bold 80px Arial";
-          ctx.fillText(validationCode, textCenterX, textCenterY - 30); // Posisi sedikit ke atas
+          ctx.fillText(validationCode, textCenterX, textCenterY - 30);
 
-          // Teks UUID Slice (lebih kecil)
           ctx.font = "60px monospace";
-          ctx.fillText(uuidSlice, textCenterX, textCenterY + 50); // Posisi di bawah kode validasi
+          ctx.fillText(uuidSlice, textCenterX, textCenterY + 50);
 
           const dataUrl = mainCanvas.toDataURL("image/png");
           const blob = await (await fetch(dataUrl)).blob();

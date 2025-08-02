@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -20,6 +21,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // Definisikan tipe data untuk produk
 type Product = {
@@ -29,6 +31,7 @@ type Product = {
   gramasi_produk: string;
   fineness: string;
   harga_produk: string;
+  harga_buyback?: string | null;
   tahun_pembuatan: number;
   upload_gambar?: string | null;
   upload_audio?: string | null;
@@ -42,7 +45,7 @@ interface ProdukFormProps {
   initialData?: Product | null;
 }
 
-export function ProdukForm({
+export default function ProdukForm({
   isOpen,
   onClose,
   onSuccess,
@@ -55,12 +58,13 @@ export function ProdukForm({
     gramasi_produk: "",
     fineness: "",
     harga_produk: "",
+    harga_buyback: "",
     tahun_pembuatan: new Date().getFullYear(),
   });
 
   // State untuk file dan pilihan audio
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
-  const [audioOption, setAudioOption] = useState("none"); // Default ke 'none'
+  const [audioOption, setAudioOption] = useState("none");
   const [existingAudios, setExistingAudios] = useState<string[]>([]);
   const [selectedExistingAudio, setSelectedExistingAudio] =
     useState<string>("");
@@ -80,26 +84,26 @@ export function ProdukForm({
         gramasi_produk: initialData.gramasi_produk,
         fineness: initialData.fineness || "",
         harga_produk: String(initialData.harga_produk),
+        harga_buyback: String(initialData.harga_buyback || ""),
         tahun_pembuatan: initialData.tahun_pembuatan,
       });
-      // Jika produk sudah punya audio, set opsi ke 'select'
       if (initialData.upload_audio) {
         setAudioOption("select");
         setSelectedExistingAudio(initialData.upload_audio);
       } else {
-        setAudioOption("none"); // Jika tidak ada audio, set ke 'none'
+        setAudioOption("none");
       }
     } else {
-      // Reset form saat mode tambah
       setFormData({
         nama_produk: "",
         series_produk: "",
         gramasi_produk: "",
         fineness: "",
         harga_produk: "",
+        harga_buyback: "",
         tahun_pembuatan: new Date().getFullYear(),
       });
-      setAudioOption("none"); // Default ke 'none'
+      setAudioOption("none");
     }
     setSelectedImageFile(null);
     setSelectedNewAudioFile(null);
@@ -110,19 +114,12 @@ export function ProdukForm({
   useEffect(() => {
     if (isOpen) {
       const fetchAudioFiles = async () => {
-        const token = localStorage.getItem("admin_token");
         try {
-          const response = await fetch(
-            "https://zh8r77hb-3000.asse.devtunnels.ms/api/audio-files",
-            {
-              headers: { Authorization: `Bearer ${token}` },
-            }
-          );
-          if (!response.ok) throw new Error("Gagal mengambil daftar audio.");
-          const data = await response.json();
+          // PERBAIKAN: Menggunakan apiClient
+          const data = await apiClient("/api/audio-files");
           setExistingAudios(data);
         } catch (err) {
-          console.error(err);
+          console.error("Gagal mengambil daftar audio:", err);
         }
       };
       fetchAudioFiles();
@@ -150,15 +147,7 @@ export function ProdukForm({
     setIsLoading(true);
     setError(null);
 
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      setError("Sesi tidak valid. Silakan login kembali.");
-      setIsLoading(false);
-      return;
-    }
-
     const data = new FormData();
-    // Append data teks
     Object.entries(formData).forEach(([key, value]) => {
       data.append(key, String(value));
     });
@@ -167,31 +156,25 @@ export function ProdukForm({
       data.append("gambar", selectedImageFile);
     }
 
-    // Logika untuk mengirim audio
     if (audioOption === "select" && selectedExistingAudio) {
       data.append("existing_audio_path", selectedExistingAudio);
     } else if (audioOption === "upload" && selectedNewAudioFile) {
       data.append("audio", selectedNewAudioFile);
     } else if (audioOption === "none") {
-      // Kirim string kosong untuk menandakan tidak ada audio
       data.append("existing_audio_path", "");
     }
 
-    const apiUrl = initialData?.id_produk
-      ? `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${initialData.id_produk}`
-      : "https://zh8r77hb-3000.asse.devtunnels.ms/api/produk";
+    const endpoint = initialData?.id_produk
+      ? `/api/produk/${initialData.id_produk}`
+      : "/api/produk";
     const method = initialData?.id_produk ? "PUT" : "POST";
 
     try {
-      const response = await fetch(apiUrl, {
+      // PERBAIKAN: Menggunakan apiClient untuk submit form
+      await apiClient(endpoint, {
         method,
         body: data,
-        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Terjadi kesalahan");
-      }
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -230,7 +213,6 @@ export function ProdukForm({
               className="col-span-3"
             />
           </div>
-
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="series_produk" className="text-right">
               Series
@@ -269,13 +251,27 @@ export function ProdukForm({
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="harga_produk" className="text-right">
-              Harga (Rp)
+              Harga Jual (Rp)
             </Label>
             <Input
               id="harga_produk"
               name="harga_produk"
               type="number"
               value={formData.harga_produk}
+              onChange={handleChange}
+              className="col-span-3"
+            />
+          </div>
+          {/* Input untuk Harga Buyback */}
+          <div className="grid grid-cols-4 items-center gap-4">
+            <Label htmlFor="harga_buyback" className="text-right">
+              Harga Buyback (Rp)
+            </Label>
+            <Input
+              id="harga_buyback"
+              name="harga_buyback"
+              type="number"
+              value={formData.harga_buyback}
               onChange={handleChange}
               className="col-span-3"
             />
@@ -311,9 +307,11 @@ export function ProdukForm({
               <div />
               <div className="col-span-3">
                 <p className="text-sm text-gray-500">Gambar saat ini:</p>
-                <img
-                  src={`https://zh8r77hb-3000.asse.devtunnels.ms/${initialData.upload_gambar}`}
+                <Image
+                  src={`http://localhost:3000/${initialData.upload_gambar}`}
                   alt="Gambar Produk"
+                  width={80}
+                  height={80}
                   className="h-20 w-20 object-cover mt-1 rounded-md"
                 />
               </div>
@@ -386,7 +384,7 @@ export function ProdukForm({
                     <audio
                       controls
                       key={selectedExistingAudio}
-                      src={`https://zh8r77hb-3000.asse.devtunnels.ms/${selectedExistingAudio}`}
+                      src={`http://localhost:3000/${selectedExistingAudio}`}
                       className="w-full mt-1 h-10"
                     >
                       Browser Anda tidak mendukung elemen audio.

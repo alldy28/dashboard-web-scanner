@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-// PERBAIKAN: useRouter tidak lagi diimpor karena tidak digunakan
 import Image from "next/image";
 import {
   PlusCircle,
@@ -33,8 +32,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ProdukForm } from "./produk-form";
+import ProdukForm from "./produk-form"; // PERBAIKAN: Menggunakan default import
 import { GenerateQrModal } from "./generate-qr-modal";
+import { apiClient } from "@/lib/api";
 
 // Tipe data untuk produk
 type Product = {
@@ -56,36 +56,23 @@ type PaginatedProductsResponse = {
   totalPages: number;
 };
 
-// Komponen ini sekarang tidak lagi menerima initialProducts,
-// karena data akan diambil di sisi klien.
 export function ProdukClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // State untuk pagination
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  // PERBAIKAN: Variabel router dihapus karena tidak digunakan
-  // const router = useRouter();
 
-  // Fungsi untuk mengambil data berdasarkan halaman
   const fetchData = async (page: number) => {
     setIsLoading(true);
     try {
-      const res = await fetch(
-        `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk?page=${page}`,
-        {
-          cache: "no-store",
-        }
+      const result: PaginatedProductsResponse = await apiClient(
+        `/api/produk?page=${page}`
       );
-      if (!res.ok) {
-        throw new Error("Gagal mengambil data produk dari server");
-      }
-      const result: PaginatedProductsResponse = await res.json();
       setProducts(result.data);
       setCurrentPage(result.currentPage);
       setTotalPages(result.totalPages);
@@ -96,7 +83,6 @@ export function ProdukClient() {
     }
   };
 
-  // Ambil data saat komponen pertama kali dimuat dan saat halaman berubah
   useEffect(() => {
     fetchData(currentPage);
   }, [currentPage]);
@@ -115,7 +101,7 @@ export function ProdukClient() {
     setIsFormModalOpen(false);
     setIsQrModalOpen(false);
     setSelectedProduct(null);
-    fetchData(currentPage); // Refresh data di halaman saat ini
+    fetchData(currentPage);
   };
 
   const handleDelete = async (productId: number) => {
@@ -123,24 +109,11 @@ export function ProdukClient() {
       return;
 
     try {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        throw new Error("Sesi admin tidak valid.");
-      }
-
-      const response = await fetch(
-        `https://zh8r77hb-3000.asse.devtunnels.ms/api/produk/${productId}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Gagal menghapus produk");
-      }
+      await apiClient(`/api/produk/${productId}`, {
+        method: "DELETE",
+      });
       alert("Produk berhasil dihapus!");
-      fetchData(currentPage); // Refresh data
+      fetchData(currentPage);
     } catch (error: unknown) {
       alert(error instanceof Error ? error.message : "Terjadi kesalahan.");
     }
@@ -218,7 +191,7 @@ export function ProdukClient() {
                       <Image
                         src={
                           product.upload_gambar
-                            ? `https://zh8r77hb-3000.asse.devtunnels.ms/${product.upload_gambar}`
+                            ? `http://localhost:3000/${product.upload_gambar}`
                             : "https://via.placeholder.com/64"
                         }
                         alt={product.nama_produk}

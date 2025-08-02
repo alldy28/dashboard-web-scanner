@@ -21,9 +21,10 @@ import {
   TrendingDown,
 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
-// --- API Config ---
-const API_BASE_URL = "https://zh8r77hb-3000.asse.devtunnels.ms"; // Ganti dengan URL API Anda
+// PERBAIKAN: Variabel API_BASE_URL dihapus karena tidak lagi digunakan
+// const API_BASE_URL = "http://localhost:3000";
 
 export default function UpdateHargaPage() {
   const [currentSilverPrice, setCurrentSilverPrice] = useState<number | null>(
@@ -48,6 +49,7 @@ export default function UpdateHargaPage() {
     message: string;
   } | null>(null);
 
+  // Fungsi untuk mengambil harga perak terkini dari API publik
   const fetchSilverPrice = async () => {
     setIsFetchingPrice(true);
     setResult(null);
@@ -82,7 +84,6 @@ export default function UpdateHargaPage() {
     setResult(null);
 
     const isBuyback = priceType === "buyback";
-    // PERBAIKAN: Mengganti 'let' dengan 'const' karena variabel tidak diubah lagi
     const value = isBuyback ? buybackAdjustmentValue : sellAdjustmentValue;
     const type = isBuyback ? buybackAdjustmentType : sellAdjustmentType;
 
@@ -92,16 +93,11 @@ export default function UpdateHargaPage() {
     }
 
     try {
-      const token = localStorage.getItem("admin_token");
-      if (!token) {
-        throw new Error("Sesi admin tidak valid. Silakan login kembali.");
-      }
-
-      const response = await fetch(`${API_BASE_URL}/api/produk/adjust-prices`, {
+      // PERBAIKAN: Menggunakan apiClient yang sudah menangani otentikasi
+      const data = await apiClient("/api/produk/adjust-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           value: value || "0", // Kirim '0' jika input kosong untuk tipe 'tetap'
@@ -109,11 +105,6 @@ export default function UpdateHargaPage() {
           price_column: isBuyback ? "harga_buyback" : "harga_produk",
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.error || "Gagal memperbarui harga produk.");
-      }
 
       setResult({ type: "success", message: data.message });
     } catch (err) {

@@ -30,6 +30,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Edit, Trash2, Link } from "lucide-react";
+import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // --- Tipe Data ---
 type Berita = {
@@ -42,7 +43,7 @@ type Berita = {
 };
 
 // --- API Config ---
-const API_BASE_URL = "https://zh8r77hb-3000.asse.devtunnels.ms"; // Ganti dengan URL API Anda
+const API_BASE_URL = "http://localhost:3000"; // Ganti dengan URL API Anda
 
 // --- Komponen Form Berita ---
 function BeritaForm({
@@ -81,13 +82,6 @@ function BeritaForm({
     setIsLoading(true);
     setError(null);
 
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      setError("Sesi tidak valid. Silakan login kembali.");
-      setIsLoading(false);
-      return;
-    }
-
     const formData = new FormData();
     formData.append("judul", judul);
     formData.append("konten", konten);
@@ -96,21 +90,18 @@ function BeritaForm({
       formData.append("gambar", selectedFile);
     }
 
-    const apiUrl = initialData
-      ? `${API_BASE_URL}/api/berita/${initialData.id_berita}`
-      : `${API_BASE_URL}/api/berita`;
+    const endpoint = initialData
+      ? `/api/berita/${initialData.id_berita}`
+      : `/api/berita`;
     const method = initialData ? "PUT" : "POST";
 
     try {
-      const response = await fetch(apiUrl, {
+      // PERBAIKAN: Menggunakan apiClient
+      await apiClient(endpoint, {
         method,
         body: formData,
-        headers: { Authorization: `Bearer ${token}` },
+        // Tidak perlu header 'Content-Type' untuk FormData
       });
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Terjadi kesalahan");
-      }
       onSuccess();
       onClose();
     } catch (err: unknown) {
@@ -203,9 +194,8 @@ export default function BeritaPage() {
   const fetchBerita = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch(`${API_BASE_URL}/api/berita`);
-      if (!res.ok) throw new Error("Gagal mengambil data berita.");
-      const data: Berita[] = await res.json();
+      // PERBAIKAN: Menggunakan apiClient (meskipun endpoint ini publik, untuk konsistensi)
+      const data: Berita[] = await apiClient("/api/berita");
       setBerita(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
@@ -232,18 +222,11 @@ export default function BeritaPage() {
     if (!window.confirm("Apakah Anda yakin ingin menghapus berita ini?"))
       return;
 
-    const token = localStorage.getItem("admin_token");
-    if (!token) {
-      alert("Sesi tidak valid.");
-      return;
-    }
-
     try {
-      const response = await fetch(`${API_BASE_URL}/api/berita/${id}`, {
+      // PERBAIKAN: Menggunakan apiClient untuk menghapus
+      await apiClient(`/api/berita/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("Gagal menghapus berita.");
 
       fetchBerita(); // Refresh data
     } catch (error) {
