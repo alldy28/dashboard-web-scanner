@@ -3,11 +3,16 @@ const nextConfig = {
   images: {
     remotePatterns: [
       {
-        protocol: 'http',
-        hostname: 'localhost',
-        port: '3010',
+        protocol: 'https',
+        hostname: 'apiv2.silverium.id',
         pathname: '/uploads/**'
       },
+      // {
+      //   protocol: 'http',
+      //   hostname: 'localhost',
+      //   port: '3010',
+      //   pathname: '/uploads/**'
+      // },
       {
         protocol: 'https',
         hostname: 'placehold.co' // Diperbaiki: Sesuai dengan yang digunakan di kode
@@ -17,7 +22,7 @@ const nextConfig = {
         protocol: 'https',
         hostname: '*.devtunnels.ms',
         pathname: '/uploads/**'
-      }
+      },
     ]
   }
 }
