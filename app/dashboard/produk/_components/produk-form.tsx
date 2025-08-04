@@ -21,9 +21,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
+import { apiClient } from "@/lib/api";
 
-// Definisikan tipe data untuk produk
+// --- Tipe Data ---
 type Product = {
   id_produk?: number;
   nama_produk: string;
@@ -37,7 +37,7 @@ type Product = {
   upload_audio?: string | null;
 };
 
-// Definisikan props untuk komponen form
+// --- Props Komponen ---
 interface ProdukFormProps {
   isOpen: boolean;
   onClose: () => void;
@@ -45,13 +45,20 @@ interface ProdukFormProps {
   initialData?: Product | null;
 }
 
+const seriesOptions = [
+  "Silver Reguler",
+  "Silver Limited Edition",
+  "Silver Bullion",
+  "Silver Custom",
+];
+
 export default function ProdukForm({
   isOpen,
   onClose,
   onSuccess,
   initialData,
 }: ProdukFormProps) {
-  // State untuk data form teks
+  // State
   const [formData, setFormData] = useState({
     nama_produk: "",
     series_produk: "",
@@ -62,12 +69,18 @@ export default function ProdukForm({
     tahun_pembuatan: new Date().getFullYear(),
   });
 
-  // State untuk file dan pilihan audio
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  // State untuk gambar
+  const [imageOption, setImageOption] = useState("upload");
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [selectedExistingImage, setSelectedExistingImage] = useState("");
+  const [selectedNewImageFile, setSelectedNewImageFile] = useState<File | null>(
+    null
+  );
+
+  // State untuk audio
   const [audioOption, setAudioOption] = useState("none");
   const [existingAudios, setExistingAudios] = useState<string[]>([]);
-  const [selectedExistingAudio, setSelectedExistingAudio] =
-    useState<string>("");
+  const [selectedExistingAudio, setSelectedExistingAudio] = useState("");
   const [selectedNewAudioFile, setSelectedNewAudioFile] = useState<File | null>(
     null
   );
@@ -75,7 +88,7 @@ export default function ProdukForm({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // useEffect untuk mengisi form saat mode edit
+  // Efek untuk mengisi form
   useEffect(() => {
     if (initialData) {
       setFormData({
@@ -87,6 +100,12 @@ export default function ProdukForm({
         harga_buyback: String(initialData.harga_buyback || ""),
         tahun_pembuatan: initialData.tahun_pembuatan,
       });
+      if (initialData.upload_gambar) {
+        setImageOption("select");
+        setSelectedExistingImage(initialData.upload_gambar);
+      } else {
+        setImageOption("upload");
+      }
       if (initialData.upload_audio) {
         setAudioOption("select");
         setSelectedExistingAudio(initialData.upload_audio);
@@ -94,6 +113,7 @@ export default function ProdukForm({
         setAudioOption("none");
       }
     } else {
+      // Reset form
       setFormData({
         nama_produk: "",
         series_produk: "",
@@ -103,37 +123,47 @@ export default function ProdukForm({
         harga_buyback: "",
         tahun_pembuatan: new Date().getFullYear(),
       });
+      setImageOption("upload");
       setAudioOption("none");
     }
-    setSelectedImageFile(null);
+    // Reset file selections
+    setSelectedNewImageFile(null);
     setSelectedNewAudioFile(null);
     setError(null);
   }, [initialData, isOpen]);
 
-  // useEffect untuk mengambil daftar audio yang sudah ada
+  // Efek untuk mengambil daftar file yang sudah ada
   useEffect(() => {
     if (isOpen) {
-      const fetchAudioFiles = async () => {
+      const fetchFiles = async () => {
         try {
-          // PERBAIKAN: Menggunakan apiClient
-          const data = await apiClient("/api/audio-files");
-          setExistingAudios(data);
+          const [audioData, imageData] = await Promise.all([
+            apiClient("/api/audio-files"),
+            apiClient("/api/image-files"),
+          ]);
+          setExistingAudios(audioData);
+          setExistingImages(imageData);
         } catch (err) {
-          console.error("Gagal mengambil daftar audio:", err);
+          console.error("Gagal mengambil daftar file:", err);
         }
       };
-      fetchAudioFiles();
+      fetchFiles();
     }
   }, [isOpen]);
 
+  // Handlers
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
+  const handleSeriesChange = (value: string) => {
+    setFormData((prev) => ({ ...prev, series_produk: value }));
+  };
+
   const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setSelectedImageFile(e.target.files[0]);
+      setSelectedNewImageFile(e.target.files[0]);
     }
   };
 
@@ -152,10 +182,14 @@ export default function ProdukForm({
       data.append(key, String(value));
     });
 
-    if (selectedImageFile) {
-      data.append("gambar", selectedImageFile);
+    // Logika untuk gambar
+    if (imageOption === "upload" && selectedNewImageFile) {
+      data.append("gambar", selectedNewImageFile);
+    } else if (imageOption === "select" && selectedExistingImage) {
+      data.append("existing_image_path", selectedExistingImage);
     }
 
+    // Logika untuk audio
     if (audioOption === "select" && selectedExistingAudio) {
       data.append("existing_audio_path", selectedExistingAudio);
     } else if (audioOption === "upload" && selectedNewAudioFile) {
@@ -170,19 +204,11 @@ export default function ProdukForm({
     const method = initialData?.id_produk ? "PUT" : "POST";
 
     try {
-      // PERBAIKAN: Menggunakan apiClient untuk submit form
-      await apiClient(endpoint, {
-        method,
-        body: data,
-      });
+      await apiClient(endpoint, { method, body: data });
       onSuccess();
       onClose();
     } catch (err: unknown) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Terjadi kesalahan tidak diketahui."
-      );
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setIsLoading(false);
     }
@@ -195,12 +221,11 @@ export default function ProdukForm({
           <DialogTitle>
             {initialData ? "Edit Produk" : "Tambah Produk Baru"}
           </DialogTitle>
-          <DialogDescription>
-            Lengkapi detail di bawah ini. Klik simpan jika sudah selesai.
-          </DialogDescription>
+          <DialogDescription>Lengkapi detail di bawah ini.</DialogDescription>
         </DialogHeader>
 
         <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+          {/* ... Input fields lainnya ... */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="nama_produk" className="text-right">
               Nama
@@ -217,13 +242,21 @@ export default function ProdukForm({
             <Label htmlFor="series_produk" className="text-right">
               Series
             </Label>
-            <Input
-              id="series_produk"
-              name="series_produk"
+            <Select
+              onValueChange={handleSeriesChange}
               value={formData.series_produk}
-              onChange={handleChange}
-              className="col-span-3"
-            />
+            >
+              <SelectTrigger className="col-span-3">
+                <SelectValue placeholder="Pilih series..." />
+              </SelectTrigger>
+              <SelectContent>
+                {seriesOptions.map((o) => (
+                  <SelectItem key={o} value={o}>
+                    {o}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="gramasi_produk" className="text-right">
@@ -251,7 +284,7 @@ export default function ProdukForm({
           </div>
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="harga_produk" className="text-right">
-              Harga Jual (Rp)
+              Harga Jual
             </Label>
             <Input
               id="harga_produk"
@@ -262,10 +295,9 @@ export default function ProdukForm({
               className="col-span-3"
             />
           </div>
-          {/* Input untuk Harga Buyback */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label htmlFor="harga_buyback" className="text-right">
-              Harga Buyback (Rp)
+              Harga Buyback
             </Label>
             <Input
               id="harga_buyback"
@@ -290,34 +322,77 @@ export default function ProdukForm({
             />
           </div>
 
+          {/* Opsi Pilihan Gambar */}
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="gambar" className="text-right">
-              Gambar
-            </Label>
-            <Input
-              id="gambar"
-              name="gambar"
-              type="file"
-              onChange={handleImageFileChange}
-              className="col-span-3"
-            />
+            <Label className="text-right">Gambar</Label>
+            <RadioGroup
+              value={imageOption}
+              onValueChange={setImageOption}
+              className="col-span-3 flex items-center space-x-4"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="upload" id="img-upload" />
+                <Label htmlFor="img-upload">Upload Baru</Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="select" id="img-select" />
+                <Label htmlFor="img-select">Pilih yang Ada</Label>
+              </div>
+            </RadioGroup>
           </div>
-          {initialData?.upload_gambar && !selectedImageFile && (
+          {imageOption === "upload" && (
             <div className="grid grid-cols-4 items-center gap-4">
               <div />
-              <div className="col-span-3">
-                <p className="text-sm text-gray-500">Gambar saat ini:</p>
-                <Image
-                  src={`https://apiv2.silverium.id/${initialData.upload_gambar}`}
-                  alt="Gambar Produk"
-                  width={80}
-                  height={80}
-                  className="h-20 w-20 object-cover mt-1 rounded-md"
-                />
-              </div>
+              <Input
+                id="gambar"
+                name="gambar"
+                type="file"
+                onChange={handleImageFileChange}
+                className="col-span-3"
+              />
             </div>
           )}
+          {imageOption === "select" && (
+            <>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <div />
+                <Select
+                  onValueChange={setSelectedExistingImage}
+                  value={selectedExistingImage}
+                >
+                  <SelectTrigger className="col-span-3">
+                    <SelectValue placeholder="Pilih file gambar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {existingImages.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p.replace("uploads/", "")}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {selectedExistingImage && (
+                <div className="grid grid-cols-4 items-center gap-4 mt-2">
+                  <div />
+                  <div className="col-span-3">
+                    <Label className="text-xs text-muted-foreground">
+                      Pratinjau
+                    </Label>
+                    <Image
+                      src={`https://apiv2.silverium.id/${selectedExistingImage}`}
+                      alt="Pratinjau"
+                      width={80}
+                      height={80}
+                      className="h-20 w-20 object-cover mt-1 rounded-md"
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
+          {/* Opsi Pilihan Audio */}
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Audio</Label>
             <RadioGroup
@@ -326,20 +401,19 @@ export default function ProdukForm({
               className="col-span-3 flex items-center space-x-4"
             >
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="none" id="none" />
-                <Label htmlFor="none">Tidak Ada Audio</Label>
+                <RadioGroupItem value="none" id="audio-none" />
+                <Label htmlFor="audio-none">Tidak Ada</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="upload" id="upload" />
-                <Label htmlFor="upload">Upload Baru</Label>
+                <RadioGroupItem value="upload" id="audio-upload" />
+                <Label htmlFor="audio-upload">Upload Baru</Label>
               </div>
               <div className="flex items-center space-x-2">
-                <RadioGroupItem value="select" id="select" />
-                <Label htmlFor="select">Pilih yang Ada</Label>
+                <RadioGroupItem value="select" id="audio-select" />
+                <Label htmlFor="audio-select">Pilih yang Ada</Label>
               </div>
             </RadioGroup>
           </div>
-
           {audioOption === "upload" && (
             <div className="grid grid-cols-4 items-center gap-4">
               <div />
@@ -353,7 +427,6 @@ export default function ProdukForm({
               />
             </div>
           )}
-
           {audioOption === "select" && (
             <>
               <div className="grid grid-cols-4 items-center gap-4">
@@ -366,9 +439,9 @@ export default function ProdukForm({
                     <SelectValue placeholder="Pilih file audio..." />
                   </SelectTrigger>
                   <SelectContent>
-                    {existingAudios.map((audioPath) => (
-                      <SelectItem key={audioPath} value={audioPath}>
-                        {audioPath.replace("uploads/", "")}
+                    {existingAudios.map((p) => (
+                      <SelectItem key={p} value={p}>
+                        {p.replace("uploads/", "")}
                       </SelectItem>
                     ))}
                   </SelectContent>

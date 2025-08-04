@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import {
   PlusCircle,
@@ -32,7 +32,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import ProdukForm from "./produk-form"; // PERBAIKAN: Menggunakan default import
+import { Input } from "@/components/ui/input";
+import ProdukForm from "./produk-form";
 import { GenerateQrModal } from "./generate-qr-modal";
 import { apiClient } from "@/lib/api";
 
@@ -59,33 +60,58 @@ type PaginatedProductsResponse = {
 export function ProdukClient() {
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
+  // State untuk pagination dan pencarian
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [searchTerm, setSearchTerm] = useState("");
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const fetchData = async (page: number) => {
+  // Fungsi untuk mengambil data berdasarkan halaman dan pencarian
+  const fetchData = useCallback(async (page: number, search: string) => {
     setIsLoading(true);
+    setError(null);
     try {
       const result: PaginatedProductsResponse = await apiClient(
-        `/api/produk?page=${page}`
+        `/api/produk?page=${page}&search=${search}`
       );
       setProducts(result.data);
       setCurrentPage(result.currentPage);
       setTotalPages(result.totalPages);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Gagal memuat data.");
+      setProducts([]);
+      setCurrentPage(1);
+      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  // useEffect untuk menangani perubahan pada searchTerm (dengan debounce)
   useEffect(() => {
-    fetchData(currentPage);
-  }, [currentPage]);
+    const handler = setTimeout(() => {
+      // Reset ke halaman 1 setiap kali pencarian baru dilakukan
+      if (currentPage !== 1) {
+        setCurrentPage(1);
+      } else {
+        fetchData(1, searchTerm);
+      }
+    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  // useEffect untuk mengambil data saat halaman berubah
+  useEffect(() => {
+    fetchData(currentPage, searchTerm);
+  }, [currentPage, fetchData]);
 
   const handleOpenFormModal = (product: Product | null) => {
     setSelectedProduct(product);
@@ -101,7 +127,7 @@ export function ProdukClient() {
     setIsFormModalOpen(false);
     setIsQrModalOpen(false);
     setSelectedProduct(null);
-    fetchData(currentPage);
+    fetchData(currentPage, searchTerm);
   };
 
   const handleDelete = async (productId: number) => {
@@ -113,7 +139,7 @@ export function ProdukClient() {
         method: "DELETE",
       });
       alert("Produk berhasil dihapus!");
-      fetchData(currentPage);
+      fetchData(currentPage, searchTerm);
     } catch (error: unknown) {
       alert(error instanceof Error ? error.message : "Terjadi kesalahan.");
     }
@@ -163,6 +189,15 @@ export function ProdukClient() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-4">
+            <Input
+              placeholder="Cari berdasarkan Nama atau Series Produk..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="max-w-sm"
+            />
+          </div>
+          {error && <p className="text-sm text-red-500 mb-4">Error: {error}</p>}
           <Table>
             <TableHeader>
               <TableRow>
@@ -184,7 +219,7 @@ export function ProdukClient() {
                     Memuat data...
                   </TableCell>
                 </TableRow>
-              ) : (
+              ) : products.length > 0 ? (
                 products.map((product) => (
                   <TableRow key={product.id_produk}>
                     <TableCell>
@@ -244,13 +279,19 @@ export function ProdukClient() {
                     </TableCell>
                   </TableRow>
                 ))
+              ) : (
+                <TableRow>
+                  <TableCell colSpan={9} className="h-24 text-center">
+                    Tidak ada produk yang ditemukan.
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
         <CardFooter className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
-            Halaman {currentPage} dari {totalPages}
+            Halaman {currentPage} dari {totalPages || 1}
           </div>
           <div className="flex items-center gap-2">
             <Button

@@ -48,7 +48,7 @@ export function GenerateQrModal({
   const [error, setError] = useState<string | null>(null);
   const [generatedKepingan, setGeneratedKepingan] = useState<Kepingan[]>([]);
 
-  const WEBSITE_URL = "https://zh8r77hb-3001.asse.devtunnels.ms/verif";
+  const WEBSITE_URL = "https://app.silverium.id/verif";
 
   const handleClose = () => {
     setGeneratedKepingan([]);
