@@ -14,8 +14,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  // State untuk form input
-  const [nomorTelepon, setNomorTelepon] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -26,16 +25,23 @@ export default function LoginPage() {
     setIsLoading(true);
     setError("");
 
+    if (!email || !password) {
+      setError("Email dan password wajib diisi.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
+      // --- PERBAIKAN: Menggunakan endpoint /api/admin/login ---
       const response = await fetch(
-        "https://apiv2.silverium.id/api/login",
+        "https://apiv2.silverium.id/api/admin/login",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            nomor_telepon: nomorTelepon,
+            email: email,
             password: password,
           }),
         }
@@ -47,9 +53,8 @@ export default function LoginPage() {
         throw new Error(data.error || "Login gagal.");
       }
 
-      // PERBAIKAN: Simpan accessToken dan refreshToken
+      // Simpan accessToken dan refreshToken
       if (data.accessToken && data.refreshToken) {
-        // Menggunakan nama yang lebih spesifik untuk token admin
         localStorage.setItem("admin_access_token", data.accessToken);
         localStorage.setItem("admin_refresh_token", data.refreshToken);
         router.push("/dashboard"); // Arahkan ke dashboard
@@ -78,14 +83,14 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="nomor_telepon">Nomor Telepon</Label>
+            <Label htmlFor="email">Email</Label>
             <Input
-              id="nomor_telepon"
-              type="text"
-              placeholder="Masukkan nomor telepon admin"
+              id="email"
+              type="email"
+              placeholder="Masukkan alamat email admin"
               required
-              value={nomorTelepon}
-              onChange={(e) => setNomorTelepon(e.target.value)}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
               disabled={isLoading}
             />
           </div>

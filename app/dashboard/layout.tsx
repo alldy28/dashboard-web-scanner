@@ -32,6 +32,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/histori-harga", label: "Histori Harga", icon: History },
   { href: "/dashboard/histori", label: "Histori Scanner", icon: History },
   { href: "/dashboard/berita", label: "Berita", icon: Newspaper },
+  { href: "/dashboard/banner", label: "Banner", icon: Newspaper },
 ];
 
 // Komponen NavLink yang bisa digunakan kembali
