@@ -23,6 +23,12 @@ const nextConfig = {
         hostname: '*.devtunnels.ms',
         pathname: '/uploads/**'
       },
+      {
+        protocol: 'https',
+        hostname: 'www.minigold.co.id',
+        port: '',
+        pathname: '/wp-content/uploads/**',
+      }
     ]
   }
 }
