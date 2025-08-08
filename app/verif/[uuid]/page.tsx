@@ -1,6 +1,6 @@
 "use client"; // Diperlukan karena kita menggunakan hooks (useState, useEffect)
 
-import React, { useState, useEffect, useRef } from "react"; // useRef ditambahkan
+import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
@@ -12,7 +12,9 @@ type ProductPreview = {
   nama_produk: string;
   upload_gambar: string | null;
   uuid_random: string;
-  upload_audio: string | null; // PENAMBAHAN: Tipe untuk audio
+  upload_audio: string | null;
+  isOwned: boolean; // PENAMBAHAN
+  nama_pemilik: string | null; // PENAMBAHAN
 };
 
 type VerificationResult = {
@@ -186,14 +188,13 @@ export default function VerificationPage() {
         setProductPreview(data);
         setView("verification");
 
-        // PERBAIKAN: Siapkan audio, tapi jangan langsung diputar
         if (data.upload_audio) {
           const audioUrl = data.upload_audio.startsWith("http")
             ? data.upload_audio
             : `${API_BASE_URL}/${data.upload_audio}`;
 
           audioRef.current = new Audio(audioUrl);
-          audioRef.current.onended = () => setIsAudioPlaying(false); // Reset state saat audio selesai
+          audioRef.current.onended = () => setIsAudioPlaying(false);
         }
       } catch (err: unknown) {
         if (err instanceof Error) {
@@ -295,7 +296,23 @@ export default function VerificationPage() {
               <p className="text-sm text-gray-400 font-mono mt-2">
                 ID: {uuid.substring(0, 6).toUpperCase()}
               </p>
-              {/* PENAMBAHAN: Tombol untuk memutar audio */}
+
+              {/* PENAMBAHAN: Menampilkan status kepemilikan */}
+              <div className="mt-4 rounded-lg bg-gray-700/50 px-4 py-2 inline-block">
+                <p className="text-xs text-gray-400">Status Kepemilikan</p>
+                <p
+                  className={`font-semibold ${
+                    productPreview.isOwned
+                      ? "text-yellow-400"
+                      : "text-green-400"
+                  }`}
+                >
+                  {productPreview.isOwned
+                    ? `Dimiliki (${productPreview.nama_pemilik || "Pengguna"})`
+                    : "Tersedia untuk Diklaim"}
+                </p>
+              </div>
+
               {productPreview.upload_audio && (
                 <button
                   onClick={handlePlayAudio}
