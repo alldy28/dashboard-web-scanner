@@ -34,7 +34,7 @@ export default function KatalogPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-800 p-4">
       <div className="text-center mb-6">
         <h1 className="text-4xl font-bold text-gray-800 dark:text-white">
-          Katalog Produk Silverium
+          Katalog Produk
         </h1>
         <p className="text-muted-foreground mt-2">
           Lihat katalog terbaru kami di bawah ini.
