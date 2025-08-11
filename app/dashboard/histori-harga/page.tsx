@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Table,
   TableBody,
@@ -17,8 +17,11 @@ import {
   CardDescription,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { TrendingUp, TrendingDown, Minus, Search, X } from "lucide-react";
+import { apiClient } from "@/lib/api";
 
 // --- Tipe Data ---
 type HargaHistori = {
@@ -131,34 +134,67 @@ export default function HistoriHargaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchHistory = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // PERBAIKAN: Menggunakan apiClient yang sudah menangani refresh token
-        const data = await apiClient("/api/harga-histori");
+  // State untuk filter tanggal
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
-        if (Array.isArray(data)) {
-          setHistori(data);
-        } else {
-          throw new Error("Format data yang diterima dari server salah.");
-        }
-      } catch (err) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Terjadi kesalahan tidak diketahui.");
-        }
-      } finally {
-        setIsLoading(false);
+  const fetchHistory = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      let endpoint = "/api/harga-histori/all";
+      // Tambahkan parameter query jika tanggal sudah diisi
+      if (startDate && endDate) {
+        endpoint += `?startDate=${startDate}&endDate=${endDate}`;
       }
-    };
 
+      const data = await apiClient(endpoint);
+
+      if (Array.isArray(data)) {
+        setHistori(data);
+      } else {
+        throw new Error("Format data yang diterima dari server salah.");
+      }
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError("Terjadi kesalahan tidak diketahui.");
+      }
+    } finally {
+      setIsLoading(false);
+    }
+  }, [startDate, endDate]);
+
+  useEffect(() => {
     fetchHistory();
-  }, []);
+  }, []); // Hanya fetch saat komponen pertama kali dimuat
 
-  // Memisahkan data histori menjadi dua
+  const handleFilter = () => {
+    if (startDate && !endDate) {
+      alert("Harap isi Tanggal Selesai.");
+      return;
+    }
+    if (!startDate && endDate) {
+      alert("Harap isi Tanggal Mulai.");
+      return;
+    }
+    fetchHistory();
+  };
+
+  const handleReset = () => {
+    setStartDate("");
+    setEndDate("");
+    // Kita perlu memanggil fetchHistory di dalam useEffect agar state yang baru sempat ter-update
+  };
+
+  // Efek untuk memuat ulang data saat filter direset
+  useEffect(() => {
+    if (!startDate && !endDate) {
+      fetchHistory();
+    }
+  }, [startDate, endDate, fetchHistory]);
+
   const historiHargaJual = useMemo(
     () => histori.filter((log) => log.kolom_harga === "harga_produk"),
     [histori]
@@ -171,9 +207,51 @@ export default function HistoriHargaPage() {
   return (
     <div>
       <h1 className="text-3xl font-bold mb-4">Histori Penyesuaian Harga</h1>
+
+      {/* PENAMBAHAN: Kartu untuk Filter Tanggal */}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle>Filter Riwayat</CardTitle>
+          <CardDescription>
+            Cari riwayat harga berdasarkan rentang tanggal.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-4 items-end">
+          <div className="grid gap-2 flex-1 w-full">
+            <Label htmlFor="start-date">Tanggal Mulai</Label>
+            <Input
+              type="date"
+              id="start-date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+          </div>
+          <div className="grid gap-2 flex-1 w-full">
+            <Label htmlFor="end-date">Tanggal Selesai</Label>
+            <Input
+              type="date"
+              id="end-date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button onClick={handleFilter} className="w-full sm:w-auto">
+              <Search className="mr-2 h-4 w-4" /> Terapkan
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleReset}
+              className="w-full sm:w-auto"
+            >
+              <X className="mr-2 h-4 w-4" /> Reset
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {error && <p className="text-sm text-red-500 mb-4">Error: {error}</p>}
       <div className="grid gap-6 md:grid-cols-2">
-        {/* Tabel Harga Jual */}
         <Card>
           <CardHeader>
             <CardTitle>Histori Harga Jual</CardTitle>
@@ -186,7 +264,6 @@ export default function HistoriHargaPage() {
           </CardContent>
         </Card>
 
-        {/* Tabel Harga Buyback */}
         <Card>
           <CardHeader>
             <CardTitle>Histori Harga Buyback</CardTitle>
