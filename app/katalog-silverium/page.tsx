@@ -37,7 +37,7 @@ export default function KatalogPage() {
           Katalog Produk
         </h1>
         <p className="text-muted-foreground mt-2">
-          Lihat katalog terbaru kami di bawah ini.
+          Lihat katalog terbaru di bawah ini.
         </p>
       </div>
 
