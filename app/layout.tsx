@@ -13,8 +13,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "app.silverium.id",
+  // PENAMBAHAN: Memberitahu Next.js URL dasar untuk produksi
+  metadataBase: new URL("https://app.silverium.id"),
+
+  title: "Silverium.id",
   description: "Silverium Indonesia",
+  icons: {
+    icon: "/logo-Silverium.png",
+  },
+  openGraph: {
+    images: [
+      {
+        url: "/logo-Silverium.png",
+        width: 800,
+        height: 600,
+        alt: "Logo Silverium",
+      },
+    ],
+  },
 };
 
 export default function RootLayout({
