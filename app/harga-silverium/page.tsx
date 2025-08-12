@@ -89,15 +89,16 @@ export default function HargaSilveriumPage() {
     fetchData();
   }, [fetchData]);
 
-  const formatCurrency = (value: string | null | undefined) => {
-    if (value === null || value === undefined || isNaN(parseFloat(value))) {
+  const formatCurrency = (value: string | null | undefined | number) => {
+    const numValue = Number(value);
+    if (value === null || value === undefined || isNaN(numValue)) {
       return "N/A";
     }
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(parseFloat(value));
+    }).format(numValue);
   };
 
   const formatDate = (dateString: string | null) => {
@@ -106,6 +107,35 @@ export default function HargaSilveriumPage() {
       dateStyle: "full",
       timeStyle: "short",
     });
+  };
+
+  // PERBAIKAN: Fungsi untuk menghitung harga buyback yang disesuaikan
+  const calculateAdjustedBuyback = (product: Product | null): number | null => {
+    if (
+      !product ||
+      product.harga_buyback === null ||
+      product.harga_buyback === undefined
+    ) {
+      return null;
+    }
+
+    const buybackValue = parseFloat(product.harga_buyback);
+    if (isNaN(buybackValue)) {
+      return null;
+    }
+
+    if (product.series_produk !== "Silver Bullion") {
+      const weightMatch = String(product.gramasi_produk).match(/[\d.]+/);
+      const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
+
+      if (weight > 0) {
+        const pricePerGram = buybackValue / weight;
+        const adjustedPricePerGram = pricePerGram + 600;
+        return adjustedPricePerGram * weight;
+      }
+    }
+
+    return buybackValue;
   };
 
   const handleProductClick = (product: Product) => {
@@ -178,7 +208,8 @@ export default function HargaSilveriumPage() {
                           {formatCurrency(product.harga_produk)}
                         </p>
                         <Badge variant="outline">
-                          Buyback: {formatCurrency(product.harga_buyback)}
+                          Buyback:{" "}
+                          {formatCurrency(calculateAdjustedBuyback(product))}
                         </Badge>
                       </div>
                     </button>
@@ -228,7 +259,9 @@ export default function HargaSilveriumPage() {
                   />
                   <DetailRow
                     label="Harga Buyback"
-                    value={formatCurrency(selectedProduct.harga_buyback)}
+                    value={formatCurrency(
+                      calculateAdjustedBuyback(selectedProduct)
+                    )}
                   />
                 </div>
               </div>

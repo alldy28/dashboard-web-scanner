@@ -71,7 +71,6 @@ export function ProdukClient() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  // Fungsi untuk mengambil data berdasarkan halaman dan pencarian
   const fetchData = useCallback(async (page: number, search: string) => {
     setIsLoading(true);
     setError(null);
@@ -92,23 +91,20 @@ export function ProdukClient() {
     }
   }, []);
 
-  // useEffect untuk menangani perubahan pada searchTerm (dengan debounce)
   useEffect(() => {
     const handler = setTimeout(() => {
-      // Reset ke halaman 1 setiap kali pencarian baru dilakukan
       if (currentPage !== 1) {
         setCurrentPage(1);
       } else {
         fetchData(1, searchTerm);
       }
-    }, 500); // Tunggu 500ms setelah user berhenti mengetik
+    }, 500);
 
     return () => {
       clearTimeout(handler);
     };
-  }, [searchTerm]);
+  }, [searchTerm, fetchData]);
 
-  // useEffect untuk mengambil data saat halaman berubah
   useEffect(() => {
     fetchData(currentPage, searchTerm);
   }, [currentPage, fetchData]);
@@ -145,15 +141,43 @@ export function ProdukClient() {
     }
   };
 
-  const formatCurrency = (value: string | null | undefined) => {
-    if (value === null || value === undefined || isNaN(parseFloat(value))) {
+  const formatCurrency = (value: string | null | undefined | number) => {
+    const numValue = Number(value);
+    if (value === null || value === undefined || isNaN(numValue)) {
       return "-";
     }
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
-    }).format(parseFloat(value));
+    }).format(numValue);
+  };
+
+  // PERBAIKAN: Fungsi untuk menghitung harga buyback yang disesuaikan
+  const calculateAdjustedBuyback = (product: Product): number | null => {
+    if (product.harga_buyback === null || product.harga_buyback === undefined) {
+      return null;
+    }
+
+    const buybackValue = parseFloat(product.harga_buyback);
+    if (isNaN(buybackValue)) {
+      return null;
+    }
+
+    // Jika bukan Silver Bullion, tambahkan 600 per gram
+    if (product.series_produk !== "Silver Bullion") {
+      const weightMatch = String(product.gramasi_produk).match(/[\d.]+/);
+      const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
+
+      if (weight > 0) {
+        const pricePerGram = buybackValue / weight;
+        const adjustedPricePerGram = pricePerGram + 600;
+        return adjustedPricePerGram * weight;
+      }
+    }
+
+    // Untuk Silver Bullion atau jika berat tidak valid, kembalikan harga asli
+    return buybackValue;
   };
 
   return (
@@ -247,7 +271,8 @@ export function ProdukClient() {
                       {formatCurrency(product.harga_produk)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {formatCurrency(product.harga_buyback)}
+                      {/* PERBAIKAN: Menampilkan harga buyback yang sudah disesuaikan */}
+                      {formatCurrency(calculateAdjustedBuyback(product))}
                     </TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>
