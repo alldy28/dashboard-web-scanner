@@ -62,7 +62,6 @@ export function ProdukClient() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // State untuk pagination dan pencarian
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
@@ -153,30 +152,23 @@ export function ProdukClient() {
     }).format(numValue);
   };
 
-  // PERBAIKAN: Fungsi untuk menghitung harga buyback yang disesuaikan
   const calculateAdjustedBuyback = (product: Product): number | null => {
     if (product.harga_buyback === null || product.harga_buyback === undefined) {
       return null;
     }
-
     const buybackValue = parseFloat(product.harga_buyback);
     if (isNaN(buybackValue)) {
       return null;
     }
-
-    // Jika bukan Silver Bullion, tambahkan 600 per gram
     if (product.series_produk !== "Silver Bullion") {
       const weightMatch = String(product.gramasi_produk).match(/[\d.]+/);
       const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
-
       if (weight > 0) {
         const pricePerGram = buybackValue / weight;
         const adjustedPricePerGram = pricePerGram + 600;
         return adjustedPricePerGram * weight;
       }
     }
-
-    // Untuk Silver Bullion atau jika berat tidak valid, kembalikan harga asli
     return buybackValue;
   };
 
@@ -196,6 +188,9 @@ export function ProdukClient() {
         produkId={selectedProduct?.id_produk || null}
         namaProduk={selectedProduct?.nama_produk || ""}
         gramasiProduk={selectedProduct?.gramasi_produk || ""}
+        seriesProduk={selectedProduct?.series_produk || ""}
+        // PERBAIKAN: Mengirimkan fineness ke modal
+        fineness={selectedProduct?.fineness || ""}
       />
 
       <div className="flex items-center justify-between mb-4">
@@ -250,7 +245,7 @@ export function ProdukClient() {
                       <Image
                         src={
                           product.upload_gambar
-                            ? `https://apiv2.silverium.id/${product.upload_gambar}`
+                            ? `http://localhost:3010/${product.upload_gambar}`
                             : "https://via.placeholder.com/64"
                         }
                         alt={product.nama_produk}
@@ -271,7 +266,6 @@ export function ProdukClient() {
                       {formatCurrency(product.harga_produk)}
                     </TableCell>
                     <TableCell className="text-right">
-                      {/* PERBAIKAN: Menampilkan harga buyback yang sudah disesuaikan */}
                       {formatCurrency(calculateAdjustedBuyback(product))}
                     </TableCell>
                     <TableCell className="text-center">

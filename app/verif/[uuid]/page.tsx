@@ -1,11 +1,11 @@
-"use client"; // Diperlukan karena kita menggunakan hooks (useState, useEffect)
+"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
 // --- Konfigurasi ---
-const API_BASE_URL = "https://apiv2.silverium.id"; // Sesuaikan jika API Anda berjalan di port lain
+const API_BASE_URL = "http://localhost:3010";
 
 // --- Tipe Data ---
 type ProductPreview = {
@@ -13,8 +13,10 @@ type ProductPreview = {
   upload_gambar: string | null;
   uuid_random: string;
   upload_audio: string | null;
-  isOwned: boolean; // PENAMBAHAN
-  nama_pemilik: string | null; // PENAMBAHAN
+  isOwned: boolean;
+  nama_pemilik: string | null;
+  gramasi_produk: string;
+  fineness: string | null;
 };
 
 type VerificationResult = {
@@ -33,7 +35,6 @@ type VerificationResult = {
 };
 
 // --- Komponen Anak ---
-
 const LoadingState = ({ message }: { message: string }) => (
   <div className="text-center">
     <svg
@@ -62,7 +63,6 @@ const LoadingState = ({ message }: { message: string }) => (
 
 const ResultState = ({ result }: { result: VerificationResult }) => {
   const { productData, isOwned } = result;
-
   const DetailRow = ({
     label,
     value,
@@ -102,7 +102,6 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
         </h1>
         <p className="text-gray-400">Certificate of Original Authenticity</p>
       </div>
-
       <div className="text-center mb-6">
         <Image
           src={
@@ -116,7 +115,6 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
           className="object-cover rounded-lg mx-auto mb-4 border-2 border-gray-700"
         />
       </div>
-
       <div className="space-y-3">
         <DetailRow
           label="Produk"
@@ -144,7 +142,6 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
           }
         />
       </div>
-
       <div className="mt-8 pt-4 border-t border-gray-700 text-center">
         <p className="text-lg font-bold text-[#c7a44a]">Secured by Silverium</p>
       </div>
@@ -166,10 +163,37 @@ export default function VerificationPage() {
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const [location, setLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
+  const [locationError, setLocationError] = useState<string | null>(null);
 
   const params = useParams();
   const uuid = params.uuid as string;
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setLocation({
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          });
+          setLocationError(null);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          setLocationError(
+            "Izin lokasi ditolak. Untuk keamanan, lokasi scan tidak akan tercatat."
+          );
+        }
+      );
+    } else {
+      setLocationError("Geolocation tidak didukung oleh browser ini.");
+    }
+  }, []);
 
   useEffect(() => {
     if (!uuid) {
@@ -192,16 +216,11 @@ export default function VerificationPage() {
           const audioUrl = data.upload_audio.startsWith("http")
             ? data.upload_audio
             : `${API_BASE_URL}/${data.upload_audio}`;
-
           audioRef.current = new Audio(audioUrl);
           audioRef.current.onended = () => setIsAudioPlaying(false);
         }
       } catch (err: unknown) {
-        if (err instanceof Error) {
-          setError(err.message);
-        } else {
-          setError("Terjadi kesalahan yang tidak diketahui.");
-        }
+        setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
         setView("error");
       }
     };
@@ -235,30 +254,29 @@ export default function VerificationPage() {
       setError("Kode validasi tidak boleh kosong.");
       return;
     }
-
     setIsVerifying(true);
     setError("");
-
     try {
+      const bodyPayload = {
+        uuid,
+        kode_validasi: validationCode,
+        latitude: location ? location.latitude : null,
+        longitude: location ? location.longitude : null,
+      };
+
       const response = await fetch(`${API_BASE_URL}/api/verify`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ uuid, kode_validasi: validationCode }),
+        body: JSON.stringify(bodyPayload),
       });
-
       const result = await response.json();
       if (!response.ok) {
         throw new Error(result.error || "Verifikasi gagal.");
       }
-
       setVerificationResult(result);
       setView("result");
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      } else {
-        setError("Terjadi kesalahan yang tidak diketahui.");
-      }
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setIsVerifying(false);
     }
@@ -293,11 +311,13 @@ export default function VerificationPage() {
               <h2 className="text-xl font-semibold text-white">
                 {productPreview.nama_produk}
               </h2>
+              <p className="text-base text-gray-300 mt-1">
+                {productPreview.gramasi_produk} | Fineness:{" "}
+                {productPreview.fineness}
+              </p>
               <p className="text-sm text-gray-400 font-mono mt-2">
                 ID: {uuid.substring(0, 6).toUpperCase()}
               </p>
-
-              {/* PENAMBAHAN: Menampilkan status kepemilikan */}
               <div className="mt-4 rounded-lg bg-gray-700/50 px-4 py-2 inline-block">
                 <p className="text-xs text-gray-400">Status Kepemilikan</p>
                 <p
@@ -312,49 +332,27 @@ export default function VerificationPage() {
                     : "Tersedia untuk Diklaim"}
                 </p>
               </div>
-
               {productPreview.upload_audio && (
                 <button
                   onClick={handlePlayAudio}
                   className="mt-4 inline-flex items-center gap-2 text-sm text-[#c7a44a] hover:text-yellow-300"
                 >
-                  {isAudioPlaying ? (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-5 h-5"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M6.75 5.25a.75.75 0 0 1 .75-.75H9a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H7.5a.75.75 0 0 1-.75-.75V5.25Zm7.5 0a.75.75 0 0 1 .75-.75H16.5a.75.75 0 0 1 .75.75v13.5a.75.75 0 0 1-.75.75H15a.75.75 0 0 1-.75-.75V5.25Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Hentikan Audio
-                    </>
-                  ) : (
-                    <>
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 24 24"
-                        fill="currentColor"
-                        className="w-5 h-5"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.647c1.295.742 1.295 2.545 0 3.286L7.279 20.99c-1.25.717-2.779-.217-2.779-1.643V5.653Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                      Dengarkan Audio Produk
-                    </>
-                  )}
+                  {isAudioPlaying ? "Hentikan Audio" : "Dengarkan Audio Produk"}
                 </button>
               )}
             </div>
+            <div className="p-4 bg-blue-900/30 border-t border-b border-blue-800">
+              <p className="text-center text-sm text-blue-300">
+                Ini adalah tahap awal verifikasi. Keaslian penuh akan
+                dikonfirmasi setelah Anda memasukkan kode validasi.
+              </p>
+            </div>
             <div className="p-6 bg-gray-900">
+              {locationError && (
+                <div className="bg-yellow-900 border border-yellow-700 text-yellow-200 px-4 py-3 rounded-lg mb-4 text-center text-sm">
+                  {locationError}
+                </div>
+              )}
               {error && (
                 <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4 text-center">
                   {error}
@@ -380,28 +378,6 @@ export default function VerificationPage() {
                 className="w-full bg-[#c7a44a] text-gray-900 font-bold py-3 px-4 rounded-lg mt-6 hover:bg-yellow-500 transition-colors duration-300 flex items-center justify-center disabled:opacity-50"
               >
                 {isVerifying ? "Memverifikasi..." : "Cek Keaslian"}
-                {isVerifying && (
-                  <svg
-                    className="animate-spin h-5 w-5 text-gray-900 ml-3"
-                    xmlns="http://www.w3.org/2000/svg"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                  >
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    ></circle>
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                    ></path>
-                  </svg>
-                )}
               </button>
             </div>
           </div>
