@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 
 // --- Konfigurasi ---
-const API_BASE_URL = "http://localhost:3010"; // Ganti dengan URL API production Anda jika perlu
+const API_BASE_URL = "https://apiv2.silverium.id"; // Ganti dengan URL API production Anda jika perlu
 
 // --- Tipe Data ---
 type Product = {

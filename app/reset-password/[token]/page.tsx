@@ -42,7 +42,7 @@ export default function ResetPasswordPage() {
 
     try {
       const response = await fetch(
-        `http://localhost:3010/api/reset-password/${token}`,
+        `https://apiv2.silverium.id/api/reset-password/${token}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
