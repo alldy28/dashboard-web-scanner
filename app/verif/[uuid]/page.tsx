@@ -379,7 +379,7 @@ export default function VerificationPage() {
             </div>
             <div className="p-4 bg-blue-900/30 border-t border-b border-blue-800">
               <p className="text-center text-sm text-blue-300">
-                Ini adalah tahap awal verifikasi. Keaslian penuh akan
+                Ini adalah tahap awal verifikasi. Untuk keaslian penuh akan
                 dikonfirmasi setelah Anda memasukkan kode validasi.
               </p>
             </div>
