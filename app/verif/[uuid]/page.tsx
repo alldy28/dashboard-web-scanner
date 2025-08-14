@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
@@ -163,17 +163,21 @@ export default function VerificationPage() {
   const [error, setError] = useState("");
   const [isVerifying, setIsVerifying] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+
   const [location, setLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [isRequestingLocation, setIsRequestingLocation] = useState(true);
 
   const params = useParams();
   const uuid = params.uuid as string;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  useEffect(() => {
+  const requestLocation = useCallback(() => {
+    setIsRequestingLocation(true);
+    setLocationError(null);
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -181,19 +185,25 @@ export default function VerificationPage() {
             latitude: position.coords.latitude,
             longitude: position.coords.longitude,
           });
-          setLocationError(null);
+          setIsRequestingLocation(false);
         },
         (error) => {
           console.error("Geolocation error:", error);
           setLocationError(
-            "Izin lokasi ditolak. Untuk keamanan, lokasi scan tidak akan tercatat."
+            "Izin lokasi ditolak. Aktifkan izin lokasi di pengaturan browser Anda untuk melanjutkan."
           );
+          setIsRequestingLocation(false);
         }
       );
     } else {
       setLocationError("Geolocation tidak didukung oleh browser ini.");
+      setIsRequestingLocation(false);
     }
   }, []);
+
+  useEffect(() => {
+    requestLocation();
+  }, [requestLocation]);
 
   useEffect(() => {
     if (!uuid) {
@@ -250,6 +260,11 @@ export default function VerificationPage() {
   };
 
   const handleVerify = async () => {
+    if (!location) {
+      alert("Izin lokasi diperlukan. Silakan aktifkan dan coba lagi.");
+      requestLocation();
+      return;
+    }
     if (!validationCode) {
       setError("Kode validasi tidak boleh kosong.");
       return;
@@ -260,8 +275,8 @@ export default function VerificationPage() {
       const bodyPayload = {
         uuid,
         kode_validasi: validationCode,
-        latitude: location ? location.latitude : null,
-        longitude: location ? location.longitude : null,
+        latitude: location.latitude,
+        longitude: location.longitude,
       };
 
       const response = await fetch(`${API_BASE_URL}/api/verify`, {
@@ -283,6 +298,27 @@ export default function VerificationPage() {
   };
 
   const renderContent = () => {
+    if (isRequestingLocation) {
+      return <LoadingState message="Meminta izin lokasi..." />;
+    }
+
+    if (locationError && !location) {
+      return (
+        <div className="bg-gray-800 border border-yellow-700 rounded-2xl shadow-lg p-6 text-center">
+          <h2 className="text-xl font-bold text-yellow-400">
+            Izin Lokasi Diperlukan
+          </h2>
+          <p className="text-gray-300 my-4">{locationError}</p>
+          <button
+            onClick={requestLocation}
+            className="bg-yellow-500 text-gray-900 font-bold py-2 px-4 rounded-lg"
+          >
+            Aktifkan & Coba Lagi
+          </button>
+        </div>
+      );
+    }
+
     switch (view) {
       case "loading":
         return <LoadingState message="Memuat data produk..." />;
@@ -348,11 +384,6 @@ export default function VerificationPage() {
               </p>
             </div>
             <div className="p-6 bg-gray-900">
-              {locationError && (
-                <div className="bg-yellow-900 border border-yellow-700 text-yellow-200 px-4 py-3 rounded-lg mb-4 text-center text-sm">
-                  {locationError}
-                </div>
-              )}
               {error && (
                 <div className="bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg mb-4 text-center">
                   {error}
