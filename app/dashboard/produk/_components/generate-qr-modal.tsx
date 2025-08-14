@@ -122,7 +122,7 @@ export function GenerateQrModal({
   const isCustomSeries = seriesProduk === "Silver Custom";
   const isBullionSeries = seriesProduk === "Silver Bullion";
 
-  const WEBSITE_URL = "https://app.silverium.id/verif";
+  const WEBSITE_URL = "http://localhost:3012/verif";
 
   useEffect(() => {
     if (isOpen) {
@@ -237,16 +237,16 @@ export function GenerateQrModal({
         const qrCanvas = document.createElement("canvas");
         await QRCode.toCanvas(qrCanvas, qrContent, { width: 400, margin: 1 });
 
-        canvas.width = 400;
+        canvas.width = 500;
         canvas.height = 200;
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, 500, 200);
         ctx.drawImage(qrCanvas, 10, 10, 180, 180);
         ctx.fillStyle = "black";
-        ctx.font = "bold 40px Arial";
-        ctx.fillText(validationCode, 220, 90);
-        ctx.font = "35px monospace";
-        ctx.fillText(uuidSlice, 220, 140);
+        ctx.font = "bold 30px Arial";
+        ctx.fillText(validationCode, 220, 80);
+        ctx.font = "20px monospace";
+        ctx.fillText(uuidSlice, 220, 120);
 
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await (await fetch(dataUrl)).blob();
@@ -271,7 +271,7 @@ export function GenerateQrModal({
     if (!produkId) return;
     setIsLoading(true);
     try {
-      const qrContent = `${WEBSITE_URL}/${produkId}`;
+      const qrContent = `${WEBSITE_URL}/product/${produkId}`;
       const dataUrl = await QRCode.toDataURL(qrContent, {
         errorCorrectionLevel: "H",
         width: 512,
@@ -495,13 +495,6 @@ export function GenerateQrModal({
                 </div>
               </RadioGroup>
             </div>
-          </div>
-        ) : isCustomSeries ? (
-          <div className="py-4 text-center">
-            <p className="text-sm text-muted-foreground">
-              QR Code ini tidak unik dan dapat digunakan untuk semua produk
-              dengan seri custom yang sama.
-            </p>
           </div>
         ) : (
           <div className="grid gap-4 py-4">

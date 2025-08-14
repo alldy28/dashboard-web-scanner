@@ -65,7 +65,13 @@ export default function HargaSilveriumPage() {
         cache: "no-store",
       });
       if (!productsRes.ok) throw new Error("Gagal mengambil data produk.");
-      const productsData = await productsRes.json();
+      let productsData: Product[] = await productsRes.json();
+
+      // PERBAIKAN: Filter produk untuk menghapus "Silver Custom"
+      productsData = productsData.filter(
+        (p) => p.series_produk !== "Silver Custom"
+      );
+
       setProducts(productsData);
 
       const lastUpdateRes = await fetch(`${API_BASE_URL}/api/harga-terakhir`, {
@@ -109,7 +115,6 @@ export default function HargaSilveriumPage() {
     });
   };
 
-  // PERBAIKAN: Fungsi untuk menghitung harga buyback yang disesuaikan
   const calculateAdjustedBuyback = (product: Product | null): number | null => {
     if (
       !product ||
