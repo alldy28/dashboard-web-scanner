@@ -225,6 +225,14 @@ export function GenerateQrModal({
       });
 
       const zip = new JSZip();
+      const logoImg = new window.Image();
+      logoImg.crossOrigin = "Anonymous";
+      logoImg.src = "/logo-Silverium.png";
+      await new Promise((resolve, reject) => {
+        logoImg.onload = resolve;
+        logoImg.onerror = reject;
+      });
+
       for (const kepingan of previewKepingan) {
         const qrContent = `${WEBSITE_URL}/${kepingan.uuid_random}`;
         const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
@@ -235,18 +243,28 @@ export function GenerateQrModal({
         if (!ctx) continue;
 
         const qrCanvas = document.createElement("canvas");
-        await QRCode.toCanvas(qrCanvas, qrContent, { width: 400, margin: 1 });
+        await QRCode.toCanvas(qrCanvas, qrContent, {
+          width: 400,
+          margin: 1,
+          errorCorrectionLevel: "H",
+        });
 
-        canvas.width = 500;
+        canvas.width = 370;
         canvas.height = 200;
         ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, 500, 200);
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(qrCanvas, 10, 10, 180, 180);
+
+        const logoSize = 150;
+        const logoX = 190 + (180 - logoSize) / 2;
+        const logoY = -50 + (180 - logoSize) / 2;
+        ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
+
         ctx.fillStyle = "black";
-        ctx.font = "bold 30px Arial";
-        ctx.fillText(validationCode, 220, 80);
-        ctx.font = "20px monospace";
-        ctx.fillText(uuidSlice, 220, 120);
+        ctx.font = "bold 35px Arial";
+        ctx.fillText(validationCode, 220, 120);
+        ctx.font = "30px monospace";
+        ctx.fillText(uuidSlice, 220, 160);
 
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await (await fetch(dataUrl)).blob();
@@ -254,7 +272,9 @@ export function GenerateQrModal({
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      saveAs(zipBlob, `QR_Codes_${namaProduk}.zip`);
+      const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
+      saveAs(zipBlob, `QR_Codes_${cleanNama}_${cleanGramasi}.zip`);
 
       onSuccess();
       onClose();
@@ -279,7 +299,10 @@ export function GenerateQrModal({
       });
       saveAs(
         dataUrl,
-        `QR_Code_Custom_${namaProduk.replace(/[^a-zA-Z0-9]/g, "_")}.png`
+        `QR_Code_Custom_${namaProduk.replace(
+          /[^a-zA-Z0-9]/g,
+          "_"
+        )}${gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_")}.png`
       );
       onSuccess();
       onClose();
@@ -362,10 +385,9 @@ export function GenerateQrModal({
       }
 
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      const fileName = `QR_Bullion_${namaProduk.replace(
-        /[^a-zA-Z0-9]/g,
-        "_"
-      )}_${jumlah}pcs.zip`;
+      const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
+      const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
+      const fileName = `QR_Bullion_${cleanNama}_${cleanGramasi}.zip`;
       saveAs(zipBlob, fileName);
 
       onSuccess();
