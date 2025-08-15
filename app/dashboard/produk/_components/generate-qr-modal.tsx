@@ -122,7 +122,7 @@ export function GenerateQrModal({
   const isCustomSeries = seriesProduk === "Silver Custom";
   const isBullionSeries = seriesProduk === "Silver Bullion";
 
-  const WEBSITE_URL = "http://localhost:3012/verif";
+  const WEBSITE_URL = "https://app.silverium.id/verif";
 
   useEffect(() => {
     if (isOpen) {
