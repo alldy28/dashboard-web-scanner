@@ -460,7 +460,7 @@ export default function ProdukForm({
                       src={`https://apiv2.silverium.id/${selectedExistingAudio}`}
                       className="w-full mt-1 h-10"
                     >
-                      Browser Anda tidak mendukung elemen audio.
+                      Browser Anda tidak mendukung audio.
                     </audio>
                   </div>
                 </div>
