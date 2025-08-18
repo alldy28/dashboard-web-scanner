@@ -380,7 +380,7 @@ export default function ProdukForm({
                       Pratinjau
                     </Label>
                     <Image
-                      src={`https://apiv2.silverium.id/${selectedExistingImage}`}
+                      src={`https://apiv2.silverium.id//${selectedExistingImage}`}
                       alt="Pratinjau"
                       width={80}
                       height={80}
@@ -457,7 +457,7 @@ export default function ProdukForm({
                     <audio
                       controls
                       key={selectedExistingAudio}
-                      src={`https://apiv2.silverium.id/${selectedExistingAudio}`}
+                      src={`https://apiv2.silverium.id//${selectedExistingAudio}`}
                       className="w-full mt-1 h-10"
                     >
                       Browser Anda tidak mendukung elemen audio.

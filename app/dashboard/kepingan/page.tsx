@@ -1,8 +1,10 @@
 "use client";
-import React, { useState, useEffect, useMemo } from "react";
+
+import React, { useState, useEffect, useCallback, useMemo } from "react"; // PERBAIKAN 1: Sintaks import
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableBody,
@@ -18,10 +20,21 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
-import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Label } from "@/components/ui/label";
+import { Trash2, Lock, Unlock, ShieldAlert } from "lucide-react";
+import { apiClient } from "@/lib/api";
 
-// Tipe data Kepingan
+// Tipe Data Gabungan
 type Kepingan = {
   id_kepingan: number;
   uuid_random: string;
@@ -31,44 +44,58 @@ type Kepingan = {
   series_produk: string;
   gramasi_produk: string;
   pemilik_user_id: number | null;
+  is_blocked: boolean;
+  block_reason: string | null;
 };
 
 export default function KepinganPage() {
   const [data, setData] = useState<Kepingan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
 
-  const fetchData = async () => {
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [selectedKepingan, setSelectedKepingan] = useState<Kepingan | null>(
+    null
+  );
+  const [blockReason, setBlockReason] = useState("");
+
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
     try {
-      // PERBAIKAN: Menggunakan apiClient
-      const kepinganData: Kepingan[] = await apiClient("/api/kepingan");
+      const kepinganData: Kepingan[] = await apiClient("/api/kepingan", {
+        cache: "no-store",
+      });
       setData(kepinganData);
     } catch (err) {
-      console.error("Gagal mengambil data kepingan:", err);
+      setError(err instanceof Error ? err.message : "Gagal memuat data.");
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const filteredData = useMemo(
     () =>
       data.filter(
-        (k) =>
+        (
+          k: Kepingan // PERBAIKAN 2: Menambahkan tipe eksplisit
+        ) =>
           k.uuid_random.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          k.kode_validasi.includes(searchTerm)
+          k.kode_validasi.toLowerCase().includes(searchTerm.toLowerCase())
       ),
     [data, searchTerm]
   );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRows(filteredData.map((k) => k.id_kepingan));
+      setSelectedRows(filteredData.map((k: Kepingan) => k.id_kepingan));
     } else {
       setSelectedRows([]);
     }
@@ -76,9 +103,11 @@ export default function KepinganPage() {
 
   const handleSelectRow = (id: number, checked: boolean) => {
     if (checked) {
-      setSelectedRows((prev) => [...prev, id]);
+      setSelectedRows((prev: number[]) => [...prev, id]);
     } else {
-      setSelectedRows((prev) => prev.filter((rowId) => rowId !== id));
+      setSelectedRows((prev: number[]) =>
+        prev.filter((rowId: number) => rowId !== id)
+      );
     }
   };
 
@@ -86,37 +115,90 @@ export default function KepinganPage() {
     if (selectedRows.length === 0) return;
     if (
       !window.confirm(
-        `Apakah Anda yakin ingin menghapus ${selectedRows.length} kepingan terpilih?`
+        `Anda yakin ingin menghapus ${selectedRows.length} kepingan terpilih?`
       )
     )
       return;
 
+    const originalData = [...data];
+    const idsToDelete = new Set(selectedRows);
+
+    setData((currentData: Kepingan[]) =>
+      currentData.filter((item: Kepingan) => !idsToDelete.has(item.id_kepingan))
+    );
+    setSelectedRows([]);
+
     try {
-      // PERBAIKAN: Menggunakan apiClient untuk menghapus
       await apiClient("/api/kepingan", {
         method: "DELETE",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ ids: selectedRows }),
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: Array.from(idsToDelete) }),
       });
-
-      fetchData();
-      setSelectedRows([]);
     } catch (error) {
       console.error("Error saat menghapus:", error);
-      alert("Gagal menghapus kepingan.");
+      alert("Gagal menghapus kepingan. Mengembalikan data.");
+      setData(originalData);
+    }
+  };
+
+  const openBlockDialog = (kepingan: Kepingan) => {
+    setSelectedKepingan(kepingan);
+    setBlockReason(kepingan.block_reason || "");
+    setIsAlertOpen(true);
+  };
+
+  const handleBlockToggle = async () => {
+    if (!selectedKepingan) return;
+
+    const isBlocking = !selectedKepingan.is_blocked;
+    if (isBlocking && !blockReason) {
+      alert("Alasan pemblokiran wajib diisi.");
+      return;
+    }
+
+    const originalData = [...data];
+
+    setData((currentData: Kepingan[]) =>
+      currentData.map((item: Kepingan) =>
+        item.id_kepingan === selectedKepingan.id_kepingan
+          ? {
+              ...item,
+              is_blocked: isBlocking,
+              block_reason: isBlocking ? blockReason : null,
+            }
+          : item
+      )
+    );
+    setIsAlertOpen(false);
+
+    const payload = {
+      is_blocked: isBlocking,
+      block_reason: isBlocking ? blockReason : null,
+    };
+
+    try {
+      await apiClient(`/api/kepingan/block/${selectedKepingan.uuid_random}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      setSelectedKepingan(null);
+    } catch (err) {
+      console.error("Error saat mengubah status blokir:", err);
+      alert("Gagal mengubah status blokir. Mengembalikan data.");
+      setData(originalData);
     }
   };
 
   return (
     <div>
-      <h1 className="text-3xl font-bold mb-4">List Semua Kepingan</h1>
+      <h1 className="text-3xl font-bold mb-4">Manajemen Kepingan Produk</h1>
       <Card>
         <CardHeader>
-          <CardTitle>Data Kepingan</CardTitle>
+          <CardTitle>Daftar Semua Kepingan</CardTitle>
           <CardDescription>
-            Cari dan kelola semua kepingan yang telah dibuat.
+            Lacak, kelola, blokir, dan hapus setiap kepingan produk yang telah
+            dibuat.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -134,65 +216,67 @@ export default function KepinganPage() {
               </Button>
             )}
           </div>
+
+          {error && <p className="text-sm text-red-500 mb-4">Error: {error}</p>}
+
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">
                   <Checkbox
                     checked={
-                      selectedRows.length === filteredData.length &&
-                      filteredData.length > 0
+                      filteredData.length > 0 &&
+                      selectedRows.length === filteredData.length
                     }
-                    onCheckedChange={handleSelectAll}
+                    onCheckedChange={(checked: boolean) =>
+                      handleSelectAll(checked)
+                    }
                   />
                 </TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>UUID</TableHead>
                 <TableHead>Produk</TableHead>
-                <TableHead>Kode Validasi</TableHead>
-                <TableHead>Pemilik (User ID)</TableHead>
-                <TableHead>Tgl. Produksi</TableHead>
+                <TableHead>UUID</TableHead>
+                <TableHead>Pemilik</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-24 text-center">
-                    Memuat data...
+                  <TableCell colSpan={6} className="h-24 text-center">
+                    Memuat data kepingan...
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredData.map((k) => (
+                filteredData.map((kepingan: Kepingan) => (
                   <TableRow
-                    key={k.id_kepingan}
+                    key={kepingan.id_kepingan}
                     data-state={
-                      selectedRows.includes(k.id_kepingan) && "selected"
+                      selectedRows.includes(kepingan.id_kepingan) && "selected"
                     }
                   >
                     <TableCell>
                       <Checkbox
-                        checked={selectedRows.includes(k.id_kepingan)}
-                        onCheckedChange={(checked) =>
-                          handleSelectRow(k.id_kepingan, !!checked)
+                        checked={selectedRows.includes(kepingan.id_kepingan)}
+                        onCheckedChange={(checked: boolean) =>
+                          handleSelectRow(kepingan.id_kepingan, checked)
                         }
                       />
                     </TableCell>
-                    <TableCell>{k.id_kepingan}</TableCell>
-                    <TableCell className="font-mono text-xs">
-                      {k.uuid_random}
-                    </TableCell>
                     <TableCell>
-                      <div className="font-medium">{k.nama_produk}</div>
+                      <div className="font-medium">{kepingan.nama_produk}</div>
                       <div className="text-sm text-muted-foreground">
-                        {k.series_produk} - {k.gramasi_produk}
+                        {kepingan.gramasi_produk}
                       </div>
                     </TableCell>
-                    <TableCell className="font-mono">
-                      {k.kode_validasi}
+                    <TableCell className="font-mono text-xs">
+                      {kepingan.uuid_random}
                     </TableCell>
                     <TableCell>
-                      {k.pemilik_user_id ? (
-                        <span className="font-medium">{k.pemilik_user_id}</span>
+                      {kepingan.pemilik_user_id ? (
+                        <span className="font-medium">
+                          {kepingan.pemilik_user_id}
+                        </span>
                       ) : (
                         <span className="text-muted-foreground">
                           Belum Dimiliki
@@ -200,7 +284,30 @@ export default function KepinganPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {new Date(k.tgl_produksi).toLocaleString("id-ID")}
+                      {kepingan.is_blocked ? (
+                        <Badge
+                          variant="destructive"
+                          className="flex items-center gap-1"
+                        >
+                          <ShieldAlert className="h-4 w-4" /> Diblokir
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Aktif</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => openBlockDialog(kepingan)}
+                      >
+                        {kepingan.is_blocked ? (
+                          <Unlock className="h-4 w-4 mr-2" />
+                        ) : (
+                          <Lock className="h-4 w-4 mr-2" />
+                        )}
+                        {kepingan.is_blocked ? "Buka Blokir" : "Blokir"}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -209,6 +316,40 @@ export default function KepinganPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {`Konfirmasi ${
+                selectedKepingan?.is_blocked ? "Buka Blokir" : "Blokir"
+              } Kepingan`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedKepingan?.is_blocked
+                ? `Anda yakin ingin membuka blokir UUID: ${selectedKepingan?.uuid_random}?`
+                : `Harap berikan alasan pemblokiran untuk UUID: ${selectedKepingan?.uuid_random}.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {!selectedKepingan?.is_blocked && (
+            <div className="grid gap-2 my-4">
+              <Label htmlFor="reason">Alasan Pemblokiran</Label>
+              <Input
+                id="reason"
+                value={blockReason}
+                onChange={(e) => setBlockReason(e.target.value)}
+                placeholder="Contoh: Produk dilaporkan hilang"
+              />
+            </div>
+          )}
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBlockToggle}>
+              Lanjutkan
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
