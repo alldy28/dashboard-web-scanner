@@ -4,10 +4,8 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
 
-// --- Konfigurasi ---
 const API_BASE_URL = "https://apiv2.silverium.id";
 
-// --- Tipe Data ---
 type ProductPreview = {
   nama_produk: string;
   upload_gambar: string | null;
@@ -18,6 +16,7 @@ type ProductPreview = {
   gramasi_produk: string;
   fineness: string | null;
   is_blocked: boolean;
+  blocked_at: string | null;
 };
 
 type VerificationResult = {
@@ -35,7 +34,6 @@ type VerificationResult = {
   isOwned: boolean;
 };
 
-// --- Komponen Anak ---
 const LoadingState = ({ message }: { message: string }) => (
   <div className="text-center">
     <svg
@@ -62,7 +60,6 @@ const LoadingState = ({ message }: { message: string }) => (
   </div>
 );
 
-// Komponen untuk status produk diblokir
 const BlockedState = ({
   productPreview,
   uuid,
@@ -70,7 +67,7 @@ const BlockedState = ({
   productPreview: ProductPreview;
   uuid: string;
 }) => {
-  const ADMIN_WHATSAPP_NUMBER = "6281234567890"; // Ganti dengan nomor admin
+  const ADMIN_WHATSAPP_NUMBER = "6281234567890";
 
   const handleContactAdmin = () => {
     const message = `Halo admin Silverium, saya ingin menanyakan status produk yang diblokir dengan ID unik:\n\n${uuid}`;
@@ -78,6 +75,14 @@ const BlockedState = ({
       message
     )}`;
     window.open(url, "_blank");
+  };
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    return new Date(dateString).toLocaleString("id-ID", {
+      dateStyle: "full",
+      timeStyle: "long",
+    });
   };
 
   return (
@@ -119,6 +124,14 @@ const BlockedState = ({
       <p className="text-sm text-gray-400 font-mono mt-2">
         ID: {uuid.substring(0, 6).toUpperCase()}
       </p>
+      {productPreview.blocked_at && (
+        <div className="mt-4 text-left bg-gray-900/50 rounded-lg p-3">
+          <p className="text-sm text-gray-400">Tanggal Diblokir:</p>
+          <p className="font-semibold text-red-300">
+            {formatDate(productPreview.blocked_at)}
+          </p>
+        </div>
+      )}
       <p className="text-gray-300 my-4 pt-4 border-t border-gray-700">
         Produk ini tidak dapat diverifikasi karena telah diblokir oleh sistem.
         Untuk informasi lebih lanjut, silakan hubungi admin kami.
@@ -224,7 +237,6 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
   );
 };
 
-// --- Komponen Utama Halaman ---
 export default function VerificationPage() {
   const [view, setView] = useState<
     "loading" | "verification" | "result" | "error"
@@ -250,7 +262,7 @@ export default function VerificationPage() {
   const uuid = params.uuid as string;
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const ADMIN_WHATSAPP_NUMBER = "6281234567890"; // Ganti dengan nomor admin
+  const ADMIN_WHATSAPP_NUMBER = "6281234567890";
 
   const handleContactAdmin = useCallback(() => {
     const message = `Halo admin Silverium, saya ingin menanyakan status produk dengan ID unik:\n\n${uuid}`;
@@ -372,14 +384,13 @@ export default function VerificationPage() {
       });
       const result = await response.json();
       if (!response.ok) {
-        // Gunakan pesan `reason` yang lebih deskriptif jika ada
         throw new Error(result.reason || result.error || "Verifikasi gagal.");
       }
       setVerificationResult(result);
       setView("result");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
-      setView("error"); // Pindah ke tampilan error
+      setView("error");
     } finally {
       setIsVerifying(false);
     }

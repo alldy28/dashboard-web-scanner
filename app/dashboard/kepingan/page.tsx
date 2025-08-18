@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react"; // PERBAIKAN 1: Sintaks import
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -34,7 +34,6 @@ import { Label } from "@/components/ui/label";
 import { Trash2, Lock, Unlock, ShieldAlert } from "lucide-react";
 import { apiClient } from "@/lib/api";
 
-// Tipe Data Gabungan
 type Kepingan = {
   id_kepingan: number;
   uuid_random: string;
@@ -46,16 +45,26 @@ type Kepingan = {
   pemilik_user_id: number | null;
   is_blocked: boolean;
   block_reason: string | null;
+  blocked_at: string | null;
+};
+
+const formatDate = (dateString: string | null) => {
+  if (!dateString) return "-";
+  return new Date(dateString).toLocaleString("id-ID", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 };
 
 export default function KepinganPage() {
   const [data, setData] = useState<Kepingan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
-
   const [isAlertOpen, setIsAlertOpen] = useState(false);
   const [selectedKepingan, setSelectedKepingan] = useState<Kepingan | null>(
     null
@@ -84,9 +93,7 @@ export default function KepinganPage() {
   const filteredData = useMemo(
     () =>
       data.filter(
-        (
-          k: Kepingan // PERBAIKAN 2: Menambahkan tipe eksplisit
-        ) =>
+        (k: Kepingan) =>
           k.uuid_random.toLowerCase().includes(searchTerm.toLowerCase()) ||
           k.kode_validasi.toLowerCase().includes(searchTerm.toLowerCase())
       ),
@@ -165,6 +172,7 @@ export default function KepinganPage() {
               ...item,
               is_blocked: isBlocking,
               block_reason: isBlocking ? blockReason : null,
+              blocked_at: isBlocking ? new Date().toISOString() : null,
             }
           : item
       )
@@ -235,15 +243,17 @@ export default function KepinganPage() {
                 </TableHead>
                 <TableHead>Produk</TableHead>
                 <TableHead>UUID</TableHead>
+                <TableHead>Kode Validasi</TableHead>
                 <TableHead>Pemilik</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Tanggal Blokir</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={8} className="h-24 text-center">
                     Memuat data kepingan...
                   </TableCell>
                 </TableRow>
@@ -272,6 +282,9 @@ export default function KepinganPage() {
                     <TableCell className="font-mono text-xs">
                       {kepingan.uuid_random}
                     </TableCell>
+                    <TableCell className="font-mono text-sm">
+                      {kepingan.kode_validasi}
+                    </TableCell>
                     <TableCell>
                       {kepingan.pemilik_user_id ? (
                         <span className="font-medium">
@@ -295,6 +308,7 @@ export default function KepinganPage() {
                         <Badge variant="secondary">Aktif</Badge>
                       )}
                     </TableCell>
+                    <TableCell>{formatDate(kepingan.blocked_at)}</TableCell>
                     <TableCell className="text-right">
                       <Button
                         variant="outline"

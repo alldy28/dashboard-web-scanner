@@ -1,6 +1,6 @@
-"use client"; // Diperlukan untuk menggunakan hooks (useState, useEffect)
+"use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Image from "next/image";
 import {
   Card,
@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CardDescription,
+  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -18,11 +19,11 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 
-// --- Konfigurasi ---
-const API_BASE_URL = "https://apiv2.silverium.id/"; // Ganti dengan URL API production Anda jika perlu
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apiv2.silverium.id";
+const ITEMS_PER_PAGE = 10;
 
-// --- Tipe Data ---
 type Product = {
   nama_produk: string;
   series_produk: string;
@@ -36,7 +37,6 @@ type LastUpdate = {
   tanggal_update: string | null;
 };
 
-// --- Komponen Detail Row (untuk di dalam Modal) ---
 const DetailRow = ({ label, value }: { label: string; value: string }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
     <p className="text-sm text-muted-foreground">{label}</p>
@@ -46,14 +46,14 @@ const DetailRow = ({ label, value }: { label: string; value: string }) => (
   </div>
 );
 
-// --- Komponen Utama Halaman ---
 export default function HargaSilveriumPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [lastUpdateData, setLastUpdateData] = useState<LastUpdate | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  // State untuk modal detail
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedSeries, setSelectedSeries] = useState("All");
+  const [currentPage, setCurrentPage] = useState(1);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -61,31 +61,25 @@ export default function HargaSilveriumPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const productsRes = await fetch(`${API_BASE_URL}/api/produk/public`, {
-        cache: "no-store",
-      });
-      if (!productsRes.ok) throw new Error("Gagal mengambil data produk.");
-      let productsData: Product[] = await productsRes.json();
+      const [productsRes, lastUpdateRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/produk/public`, { cache: "no-store" }),
+        fetch(`${API_BASE_URL}/api/harga-terakhir`, { cache: "no-store" }),
+      ]);
 
-      // PERBAIKAN: Filter produk untuk menghapus "Silver Custom"
+      if (!productsRes.ok) throw new Error("Gagal mengambil data produk.");
+      if (!lastUpdateRes.ok) throw new Error("Gagal mengambil tanggal update.");
+
+      let productsData: Product[] = await productsRes.json();
+      const lastUpdate = await lastUpdateRes.json();
+
       productsData = productsData.filter(
         (p) => p.series_produk !== "Silver Custom"
       );
 
       setProducts(productsData);
-
-      const lastUpdateRes = await fetch(`${API_BASE_URL}/api/harga-terakhir`, {
-        cache: "no-store",
-      });
-      if (!lastUpdateRes.ok) throw new Error("Gagal mengambil tanggal update.");
-      const lastUpdate = await lastUpdateRes.json();
       setLastUpdateData(lastUpdate);
     } catch (err) {
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Terjadi kesalahan tidak diketahui."
-      );
+      setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
     } finally {
       setIsLoading(false);
     }
@@ -94,6 +88,49 @@ export default function HargaSilveriumPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const uniqueSeries = useMemo(() => {
+    if (products.length === 0) return [];
+    const seriesSet = new Set(products.map((p) => p.series_produk));
+    return ["All", ...Array.from(seriesSet)];
+  }, [products]);
+
+  const processedProducts = useMemo(() => {
+    let filtered = products;
+
+    if (selectedSeries !== "All") {
+      filtered = filtered.filter((p) => p.series_produk === selectedSeries);
+    }
+
+    if (searchTerm) {
+      filtered = filtered.filter((p) =>
+        p.nama_produk.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE);
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+    const paginatedItems = filtered.slice(
+      startIndex,
+      startIndex + ITEMS_PER_PAGE
+    );
+
+    return {
+      paginatedItems,
+      totalPages,
+      totalFilteredCount: filtered.length,
+    };
+  }, [products, selectedSeries, searchTerm, currentPage]);
+
+  const handleSeriesChange = (series: string) => {
+    setSelectedSeries(series);
+    setCurrentPage(1);
+  };
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1);
+  };
 
   const formatCurrency = (value: string | null | undefined | number) => {
     const numValue = Number(value);
@@ -123,23 +160,19 @@ export default function HargaSilveriumPage() {
     ) {
       return null;
     }
-
     const buybackValue = parseFloat(product.harga_buyback);
     if (isNaN(buybackValue)) {
       return null;
     }
-
     if (product.series_produk !== "Silver Bullion") {
       const weightMatch = String(product.gramasi_produk).match(/[\d.]+/);
       const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
-
       if (weight > 0) {
         const pricePerGram = buybackValue / weight;
         const adjustedPricePerGram = pricePerGram + 600;
         return adjustedPricePerGram * weight;
       }
     }
-
     return buybackValue;
   };
 
@@ -159,6 +192,26 @@ export default function HargaSilveriumPage() {
             <p className="text-muted-foreground mt-2">
               Harga diperbarui secara real-time.
             </p>
+          </div>
+
+          <div className="mb-6 space-y-4">
+            <Input
+              placeholder="Cari nama produk..."
+              value={searchTerm}
+              onChange={handleSearchChange}
+              className="w-full max-w-sm mx-auto"
+            />
+            <div className="flex flex-wrap justify-center gap-2">
+              {uniqueSeries.map((series) => (
+                <Button
+                  key={series}
+                  variant={selectedSeries === series ? "default" : "outline"}
+                  onClick={() => handleSeriesChange(series)}
+                >
+                  {series}
+                </Button>
+              ))}
+            </div>
           </div>
 
           <Card className="w-full">
@@ -181,8 +234,8 @@ export default function HargaSilveriumPage() {
                   <p className="col-span-1 md:col-span-2 text-center text-red-500 py-8">
                     {error}
                   </p>
-                ) : products.length > 0 ? (
-                  products.map((product, index) => (
+                ) : processedProducts.paginatedItems.length > 0 ? (
+                  processedProducts.paginatedItems.map((product, index) => (
                     <button
                       key={index}
                       className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg border dark:border-gray-700 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors cursor-pointer text-left w-full"
@@ -221,16 +274,43 @@ export default function HargaSilveriumPage() {
                   ))
                 ) : (
                   <p className="col-span-1 md:col-span-2 text-center text-muted-foreground py-8">
-                    Tidak ada produk yang tersedia saat ini.
+                    Tidak ada produk yang cocok dengan kriteria pencarian.
                   </p>
                 )}
               </div>
             </CardContent>
+            {processedProducts.totalPages > 1 && (
+              <CardFooter className="flex justify-between items-center pt-4">
+                <span className="text-sm text-muted-foreground">
+                  Halaman {currentPage} dari {processedProducts.totalPages}
+                </span>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setCurrentPage((prev) => Math.max(prev - 1, 1))
+                    }
+                    disabled={currentPage === 1}
+                  >
+                    Sebelumnya
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() =>
+                      setCurrentPage((prev) =>
+                        Math.min(prev + 1, processedProducts.totalPages)
+                      )
+                    }
+                    disabled={currentPage === processedProducts.totalPages}
+                  >
+                    Selanjutnya
+                  </Button>
+                </div>
+              </CardFooter>
+            )}
           </Card>
         </main>
       </div>
-
-      {/* Modal untuk Detail Produk */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="sm:max-w-md bg-white dark:bg-gray-800">
           {selectedProduct && (

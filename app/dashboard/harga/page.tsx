@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // PERBAIKAN: Variabel API_BASE_URL dihapus karena tidak lagi digunakan
-// const API_BASE_URL = "https://apiv2.silverium.id/";
+// const API_BASE_URL = "https://apiv2.silverium.id";
 
 export default function UpdateHargaPage() {
   const [currentSilverPrice, setCurrentSilverPrice] = useState<number | null>(
