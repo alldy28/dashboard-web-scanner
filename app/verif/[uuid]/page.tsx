@@ -160,7 +160,7 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
       const date = parseISO(dateString);
       return format(date, "d MMMM yyyy, HH:mm", { locale: id });
     } catch (error) {
-      console.error("Invalid date format:", dateString);
+      console.error("Invalid date format for:", dateString, error);
       return "Tanggal tidak valid";
     }
   };
