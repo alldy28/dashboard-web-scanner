@@ -3,6 +3,8 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
+import { parseISO, format } from "date-fns";
+import { id } from "date-fns/locale";
 
 const API_BASE_URL = "https://apiv2.silverium.id";
 
@@ -151,6 +153,18 @@ const BlockedState = ({
 
 const ResultState = ({ result }: { result: VerificationResult }) => {
   const { productData, isOwned } = result;
+
+  const formatApiDate = (dateString: string | null) => {
+    if (!dateString) return "-";
+    try {
+      const date = parseISO(dateString);
+      return format(date, "d MMMM yyyy, HH:mm", { locale: id });
+    } catch (error) {
+      console.error("Invalid date format:", dateString);
+      return "Tanggal tidak valid";
+    }
+  };
+
   const DetailRow = ({
     label,
     value,
@@ -216,7 +230,7 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
         />
         <DetailRow
           label="Tanggal Produksi"
-          value={new Date(productData.tgl_produksi).toLocaleString("id-ID")}
+          value={formatApiDate(productData.tgl_produksi)}
         />
         <DetailRow
           label="ID Unik"
