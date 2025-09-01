@@ -27,7 +27,13 @@ const nextConfig = {
         protocol: 'https',
         hostname: 'www.minigold.co.id',
         port: '',
-        pathname: '/wp-content/uploads/**',
+        pathname: '/wp-content/uploads/**'
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3010',
+        pathname: '/**' // Diubah dari '/uploads/**' menjadi '/**'
       }
     ]
   }
