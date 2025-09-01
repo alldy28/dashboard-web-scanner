@@ -20,7 +20,7 @@ type NavItem = {
   icon: React.ElementType;
 };
 
-// Item navigasi khusus untuk Bandar
+// Item navigasi khusus untuk Bandar Silverium
 const navItems: NavItem[] = [
   { href: "/bandar-dashboard", label: "Dashboard", icon: LayoutDashboard },
   {
