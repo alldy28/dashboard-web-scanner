@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
 
     try {
-      // --- PERBAIKAN: Menggunakan endpoint /api/admin/login ---
+      // --- PERBAIKAN: endpoint /api/admin/login ---
       const response = await fetch(
         "https://apiv2.silverium.id/api/admin/login",
         {
