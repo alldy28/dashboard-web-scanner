@@ -28,7 +28,7 @@ export default function KatalogPage() {
   const fetchUrl = useCallback(async () => {
     setIsFetching(true);
     try {
-      const data = await apiClient("/api/katalog");
+      const data = await apiClient("/api/admin/katalog");
       setPdfUrl(data.url_pdf || "");
     } catch (error) {
       console.error("Gagal mengambil URL katalog:", error);
@@ -46,7 +46,7 @@ export default function KatalogPage() {
     setIsLoading(true);
     setResult(null);
     try {
-      await apiClient("/api/katalog", {
+      await apiClient("/api/admin/katalog", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url_pdf: pdfUrl }),

@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { parseISO, format } from "date-fns";
 import { id } from "date-fns/locale";
 
-const API_BASE_URL = "https://apiv2.silverium.id";
+const API_BASE_URL = "http://localhost:3010";
 
 type ProductPreview = {
   nama_produk: string;

@@ -46,7 +46,7 @@ export default function HistoriPage() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await apiClient("/api/scan-history-all");
+        const data = await apiClient("/api/admin/scan-history");
         if (Array.isArray(data)) {
           setLogs(data);
         } else {

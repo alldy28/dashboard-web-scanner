@@ -50,7 +50,7 @@ type Banner = {
 };
 
 // URL API - Ganti jika perlu
-const API_URL = "https://apiv2.silverium.id/api/banners";
+const API_URL = "http://localhost:3010/api/admin/banners";
 
 export default function BannerPage() {
   const [banners, setBanners] = useState<Banner[]>([]);

@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { Loader2, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+// Kita gunakan kembali komponen status yang sudah ada
 import TransactionStatus from "@/app/dashboard/transactions/[id]/components/TransactionStatus";
-import { Loader2 } from "lucide-react";
 
+// Tipe data untuk objek transaksi dari API bandar
 type Transaction = {
   transaction_id: number;
   nama_pembeli: string;
@@ -23,14 +26,13 @@ export default function BandarTransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [searchTerm, setSearchTerm] = useState(""); // State untuk input pencarian
 
   useEffect(() => {
     const fetchTransactions = async () => {
       const token = localStorage.getItem("bandar_access_token");
       if (!token) {
-        setError(
-          "Token tidak ditemukan. Silakan login kembali sebagai Bandar."
-        );
+        setError("Token tidak valid. Silakan login kembali.");
         setIsLoading(false);
         return;
       }
@@ -44,13 +46,17 @@ export default function BandarTransactionsPage() {
         );
 
         if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || "Gagal mengambil data transaksi");
+          throw new Error("Gagal mengambil data transaksi.");
         }
+
         const data = await res.json();
-        setTransactions(data);
+        setTransactions(data || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Terjadi kesalahan");
+        if (err instanceof Error) {
+          setError(err.message);
+        } else {
+          setError("Terjadi kesalahan yang tidak diketahui");
+        }
       } finally {
         setIsLoading(false);
       }
@@ -59,6 +65,13 @@ export default function BandarTransactionsPage() {
     fetchTransactions();
   }, []);
 
+  // Logika untuk memfilter transaksi berdasarkan ID atau nama konsumen
+  const filteredTransactions = transactions.filter(
+    (tx) =>
+      tx.transaction_id.toString().includes(searchTerm) ||
+      tx.nama_pembeli.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
   if (isLoading) {
     return (
       <div className="p-10 flex justify-center">
@@ -66,6 +79,7 @@ export default function BandarTransactionsPage() {
       </div>
     );
   }
+
   if (error) {
     return <p className="p-6 text-red-500">Error: {error}</p>;
   }
@@ -75,6 +89,19 @@ export default function BandarTransactionsPage() {
       <h1 className="text-2xl font-semibold text-gray-900 mb-5">
         Daftar Tugas Transaksi
       </h1>
+
+      {/* Input Pencarian */}
+      <div className="relative mb-4">
+        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="search"
+          placeholder="Cari berdasarkan ID Transaksi atau Nama Konsumen..."
+          className="w-full rounded-lg bg-background pl-8 md:w-1/3"
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+      </div>
+
       <div className="overflow-x-auto shadow-md sm:rounded-lg">
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
@@ -100,23 +127,27 @@ export default function BandarTransactionsPage() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {transactions.length > 0 ? (
-              transactions.map((tx) => (
+            {filteredTransactions.length > 0 ? (
+              filteredTransactions.map((tx) => (
                 <tr key={tx.transaction_id}>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    {tx.transaction_id}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    #{tx.transaction_id}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-800">
                     {tx.nama_pembeli}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm capitalize">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 capitalize">
                     {tx.type.replace(/_/g, " ")}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <TransactionStatus status={tx.status} />
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    {new Date(tx.created_at).toLocaleDateString("id-ID")}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {new Date(tx.created_at).toLocaleDateString("id-ID", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <Link
@@ -131,7 +162,11 @@ export default function BandarTransactionsPage() {
             ) : (
               <tr>
                 <td colSpan={6} className="text-center py-10 text-gray-500">
-                  Tidak ada tugas transaksi untuk Anda saat ini.
+                  <p>
+                    {searchTerm
+                      ? `Tidak ada transaksi yang cocok dengan pencarian "${searchTerm}".`
+                      : "Tidak ada tugas transaksi untuk Anda saat ini."}
+                  </p>
                 </td>
               </tr>
             )}

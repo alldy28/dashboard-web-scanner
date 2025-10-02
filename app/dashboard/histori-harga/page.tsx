@@ -142,7 +142,7 @@ export default function HistoriHargaPage() {
     setIsLoading(true);
     setError(null);
     try {
-      let endpoint = "/api/harga-histori/all";
+      let endpoint = "/api/admin/harga-histori";
       // Tambahkan parameter query jika tanggal sudah diisi
       if (startDate && endDate) {
         endpoint += `?startDate=${startDate}&endDate=${endDate}`;

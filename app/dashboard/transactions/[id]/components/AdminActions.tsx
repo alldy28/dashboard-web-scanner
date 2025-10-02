@@ -3,9 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { Loader2, CheckCircle, XCircle, Send } from "lucide-react";
 
-type TransactionDetail = {
+type Transaction = {
   transaction_id: number;
   status:
     | "pending"
@@ -16,62 +16,63 @@ type TransactionDetail = {
     | "completed";
 };
 
-interface AdminActionsProps {
-  transaction: TransactionDetail;
-}
-
-export default function AdminActions({ transaction }: AdminActionsProps) {
+export default function AdminActions({
+  transaction,
+}: {
+  transaction: Transaction;
+}) {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState<"approve" | "reject" | null>(null);
+  const [isLoading, setIsLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAction = async (action: "approve" | "reject") => {
+  const handleAction = async (action: "approve" | "reject" | "ship") => {
     setIsLoading(action);
     setError(null);
-
     const token = localStorage.getItem("admin_access_token");
-    if (!token) {
-      setError("Autentikasi gagal. Silakan login kembali.");
-      setIsLoading(null);
-      return;
-    }
+
+    // URL API disesuaikan berdasarkan aksi
+    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL}/api/admin/transactions/${
+      action === "ship"
+        ? transaction.transaction_id + "/ship"
+        : action + "/" + transaction.transaction_id
+    }`;
 
     try {
-      // Perhatikan URL API di sini, saya ubah agar lebih konsisten
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/admin/transactions/${action}/${transaction.transaction_id}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const res = await fetch(apiUrl, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
       if (!res.ok) {
         const errorData = await res.json();
-        throw new Error(errorData.error || `Gagal untuk ${action} transaksi.`);
+        throw new Error(errorData.error || `Aksi ${action} gagal.`);
       }
 
       alert(
-        `Transaksi berhasil di-${action === "approve" ? "setujui" : "tolak"}!`
+        `Transaksi berhasil di-${
+          action === "ship"
+            ? "tandai terkirim"
+            : action === "approve"
+            ? "setujui"
+            : "tolak"
+        }!`
       );
       router.refresh();
     } catch (err) {
-      // --- PERBAIKAN 1: Menghapus tipe 'any' ---
       if (err instanceof Error) {
         setError(err.message);
       } else {
-        setError("Terjadi error yang tidak diketahui");
+        setError("Terjadi kesalahan");
       }
     } finally {
       setIsLoading(null);
     }
   };
 
-  if (transaction.status === "pending") {
-    return (
-      <div>
+  return (
+    <div className="space-y-4">
+      {/* Tombol Approve & Reject */}
+      {transaction.status === "pending" && (
         <div className="flex space-x-3">
           <Button
             onClick={() => handleAction("approve")}
@@ -97,16 +98,21 @@ export default function AdminActions({ transaction }: AdminActionsProps) {
             Reject
           </Button>
         </div>
-        {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
-      </div>
-    );
-  }
+      )}
 
-  // --- PERBAIKAN 2: Mengganti tanda kutip dengan &apos; ---
-  return (
-    <p className="text-sm text-gray-500">
-      Tidak ada aksi yang tersedia untuk status &apos;{transaction.status}
-      &apos;.
-    </p>
+      {/* Tombol Tandai Telah Dikirim */}
+      {transaction.status === "approved" && (
+        <Button onClick={() => handleAction("ship")} disabled={!!isLoading}>
+          {isLoading === "ship" ? (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          ) : (
+            <Send className="mr-2 h-4 w-4" />
+          )}
+          Tandai Telah Dikirim ke Bandar
+        </Button>
+      )}
+
+      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+    </div>
   );
 }

@@ -75,7 +75,7 @@ export default function KepinganPage() {
     setIsLoading(true);
     setError(null);
     try {
-      const kepinganData: Kepingan[] = await apiClient("/api/kepingan", {
+      const kepinganData: Kepingan[] = await apiClient("/api/admin/kepingan", {
         cache: "no-store",
       });
       setData(kepinganData);
@@ -136,7 +136,7 @@ export default function KepinganPage() {
     setSelectedRows([]);
 
     try {
-      await apiClient("/api/kepingan", {
+      await apiClient("/api/admin/kepingan", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: Array.from(idsToDelete) }),
@@ -185,7 +185,7 @@ export default function KepinganPage() {
     };
 
     try {
-      await apiClient(`/api/kepingan/block/${selectedKepingan.uuid_random}`, {
+      await apiClient(`/api/admin/kepingan/block/${selectedKepingan.uuid_random}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

@@ -43,7 +43,7 @@ type Berita = {
 };
 
 // --- API Config ---
-const API_BASE_URL = "https://apiv2.silverium.id"; // Ganti dengan URL API Anda
+const API_BASE_URL = "http://localhost:3010"; // Ganti dengan URL API Anda
 
 // --- Komponen Form Berita ---
 function BeritaForm({
@@ -91,8 +91,8 @@ function BeritaForm({
     }
 
     const endpoint = initialData
-      ? `/api/berita/${initialData.id_berita}`
-      : `/api/berita`;
+      ? `/api/admin/berita/${initialData.id_berita}`
+      : `/api/admin/berita`;
     const method = initialData ? "PUT" : "POST";
 
     try {
@@ -195,7 +195,7 @@ export default function BeritaPage() {
     setIsLoading(true);
     try {
       // PERBAIKAN: Menggunakan apiClient (meskipun endpoint ini publik, untuk konsistensi)
-      const data: Berita[] = await apiClient("/api/berita");
+      const data: Berita[] = await apiClient("/api/admin/berita");
       setBerita(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
@@ -224,7 +224,7 @@ export default function BeritaPage() {
 
     try {
       // PERBAIKAN: Menggunakan apiClient untuk menghapus
-      await apiClient(`/api/berita/${id}`, {
+      await apiClient(`/api/admin/berita/${id}`, {
         method: "DELETE",
       });
 

@@ -4,9 +4,9 @@ import TransactionStatus from "./TransactionStatus";
 import AdminActions from "./AdminActions";
 import PrintLabel from "./PrintLabel";
 import UploadProof from "./UploadProof";
-import Image from "next/image"; // Ditambahkan untuk kelengkapan jika dibutuhkan di child component
+import Image from "next/image";
 
-// Impor tipe data agar konsisten
+// Tipe data untuk detail transaksi
 type TransactionDetail = {
   transaction_id: number;
   customer_name: string;
@@ -22,6 +22,8 @@ type TransactionDetail = {
     | "ready_for_pickup"
     | "completed";
   amount: number;
+  price_per_gram: number | null;
+  total_price: number | null;
   details: Record<string, unknown> | null;
   payment_proof_url: string | null;
   admin_proof_url: string | null;
@@ -38,21 +40,20 @@ export default function TransactionDetailClient({
 }: TransactionDetailClientProps) {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
-  // Fungsi untuk merender blok Aksi Admin secara dinamis dan rapi
+  // Fungsi untuk merender blok Aksi Admin secara dinamis
   const renderAdminActions = () => {
-    // Prioritas 1: Jika status 'pending', selalu tampilkan aksi persetujuan.
+    // Jika status 'pending', tampilkan aksi persetujuan.
     if (transaction.status === "pending") {
       return <AdminActions transaction={transaction} />;
     }
-
-    // Prioritas 2: Jika BUKAN 'pending' dan tipenya 'physical_print', tampilkan aksi logistik.
+    // Jika BUKAN 'pending' dan tipenya 'physical_print', tampilkan aksi logistik.
     if (transaction.type === "physical_print") {
       return (
         <div className="space-y-4 pt-4 border-t">
           <h4 className="text-md font-medium text-gray-800">
             Logistik Cetak Fisik
           </h4>
-          {/* Tampilkan opsi upload jika sudah disetujui atau sedang dalam perjalanan */}
+          {/* Tampilkan opsi upload/kirim jika sudah disetujui */}
           {(transaction.status === "approved" ||
             transaction.status === "in_transit") && (
             <UploadProof
@@ -64,8 +65,7 @@ export default function TransactionDetailClient({
         </div>
       );
     }
-
-    // Prioritas 3 (Default): Jika kondisi di atas tidak terpenuhi, tampilkan pesan ini.
+    // Jika kondisi di atas tidak terpenuhi, tampilkan pesan default.
     return (
       <p className="text-sm text-gray-500">
         Tidak ada aksi yang tersedia untuk transaksi ini.
@@ -75,7 +75,7 @@ export default function TransactionDetailClient({
 
   return (
     <div className="p-6 space-y-6">
-      {/* Bagian Informasi */}
+      {/* Header Halaman */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900">
           Detail Transaksi #{transaction.transaction_id}
@@ -89,7 +89,7 @@ export default function TransactionDetailClient({
         </p>
       </div>
 
-      {/* Informasi Transaksi */}
+      {/* Kartu Informasi Transaksi */}
       <div className="bg-white shadow sm:rounded-lg p-6">
         <h3 className="text-lg font-medium leading-6 text-gray-900">
           Informasi Transaksi
@@ -115,18 +115,69 @@ export default function TransactionDetailClient({
               {transaction.amount} gram
             </dd>
           </div>
+
+          {/* Logika Tampilan Harga */}
+          {transaction.type === "physical_print" ? (
+            <div>
+              <dt className="text-sm font-medium text-gray-900">
+                Total Biaya Cetak
+              </dt>
+              <dd className="mt-1 text-sm font-bold text-gray-900">
+                {transaction.total_price
+                  ? new Intl.NumberFormat("id-ID", {
+                      style: "currency",
+                      currency: "IDR",
+                      minimumFractionDigits: 0,
+                    }).format(transaction.total_price)
+                  : "-"}
+              </dd>
+            </div>
+          ) : (
+            <>
+              <div>
+                <dt className="text-sm font-medium text-gray-500">
+                  Harga per Gram
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900">
+                  {transaction.price_per_gram
+                    ? new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                      }).format(transaction.price_per_gram)
+                    : "-"}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-medium text-gray-900">
+                  Total Harga
+                </dt>
+                <dd className="mt-1 text-sm font-bold text-gray-900">
+                  {transaction.total_price
+                    ? new Intl.NumberFormat("id-ID", {
+                        style: "currency",
+                        currency: "IDR",
+                        minimumFractionDigits: 0,
+                      }).format(transaction.total_price)
+                    : "-"}
+                </dd>
+              </div>
+            </>
+          )}
+
           <div>
             <dt className="text-sm font-medium text-gray-500">
               Bandar Terkait
             </dt>
             <dd className="mt-1 text-sm text-gray-900">
-              {transaction.bandar_name || "-"}
+              {transaction.bandar_name ||
+                (transaction.type !== "physical_print" ? "Pusat" : "-")}
             </dd>
           </div>
         </div>
       </div>
 
-      {/* Informasi Konsumen */}
+      {/* Kartu Informasi Konsumen */}
       <div className="bg-white shadow sm:rounded-lg p-6">
         <h3 className="text-lg font-medium leading-6 text-gray-900">
           Informasi Konsumen
@@ -153,7 +204,7 @@ export default function TransactionDetailClient({
         </div>
       </div>
 
-      {/* Bukti Pembayaran & Pengiriman */}
+      {/* Kartu Bukti Pembayaran & Pengiriman */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {transaction.payment_proof_url && (
           <div className="bg-white shadow sm:rounded-lg p-6">
@@ -197,15 +248,12 @@ export default function TransactionDetailClient({
         )}
       </div>
 
-      {/* Bagian Aksi Admin yang Dinamis */}
+      {/* Kartu Aksi Admin */}
       <div className="bg-white shadow sm:rounded-lg p-6">
         <h3 className="text-lg font-medium leading-6 text-gray-900">
           Aksi Admin
         </h3>
-        <div className="mt-4 space-y-4">
-          {/* Memanggil fungsi render yang logikanya sudah diperbaiki */}
-          {renderAdminActions()}
-        </div>
+        <div className="mt-4 space-y-4">{renderAdminActions()}</div>
       </div>
     </div>
   );

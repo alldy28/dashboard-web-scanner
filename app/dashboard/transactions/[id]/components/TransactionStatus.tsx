@@ -8,7 +8,8 @@ type Status =
   | "rejected"
   | "in_transit"
   | "ready_for_pickup"
-  | "completed";
+  | "completed"
+  | 'pre-order';
 
 interface TransactionStatusProps {
   status: Status;
@@ -46,6 +47,11 @@ const statusStyles: Record<Status, { text: string; bg: string; dot: string }> =
       bg: "bg-red-100",
       dot: "bg-red-500",
     },
+    "pre-order": {
+      text: "",
+      bg: "",
+      dot: ""
+    }
   };
 
 const TransactionStatus: React.FC<TransactionStatusProps> = ({ status }) => {

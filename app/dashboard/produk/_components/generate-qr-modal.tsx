@@ -41,7 +41,7 @@ interface GenerateQrModalProps {
 // --- Konfigurasi Template untuk Silver Bullion ---
 const templates = {
   small: {
-    url: "https://apiv2.silverium.id/uploads/template_kecil.png",
+    url: "http://localhost:3010/uploads/template_kecil.png",
     qrX: 213,
     qrY: 190,
     qrSize: 230,
@@ -60,7 +60,7 @@ const templates = {
     font4: "25px Arial",
   },
   medium: {
-    url: "https://apiv2.silverium.id/uploads/template_sedang.png",
+    url: "http://localhost:3010/uploads/template_sedang.png",
     qrX: 250,
     qrY: 233,
     qrSize: 270,
@@ -79,7 +79,7 @@ const templates = {
     font4: "30px Arial",
   },
   large: {
-    url: "https://apiv2.silverium.id/uploads/template_besar.png",
+    url: "http://localhost:3010/uploads/template_besar.png",
     qrX: 285,
     qrY: 315,
     qrSize: 320,
@@ -122,7 +122,7 @@ export function GenerateQrModal({
   const isCustomSeries = seriesProduk === "Silver Custom";
   const isBullionSeries = seriesProduk === "Silver Bullion";
 
-  const WEBSITE_URL = "https://app.silverium.id/verif";
+  const WEBSITE_URL = "http://localhost:3012/verif";
 
   useEffect(() => {
     if (isOpen) {
@@ -138,7 +138,7 @@ export function GenerateQrModal({
     setIsLoading(true);
     setError(null);
     try {
-      const data = await apiClient(`/api/produk/${produkId}/preview-qr`, {
+      const data = await apiClient(`/api/admin/produk/${produkId}/preview-qr`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ jumlah }),
@@ -218,7 +218,7 @@ export function GenerateQrModal({
     setError(null);
 
     try {
-      await apiClient("/api/produk/save-kepingan", {
+      await apiClient("/api/admin/produk/save-kepingan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kepinganList: previewKepingan }),
@@ -320,7 +320,7 @@ export function GenerateQrModal({
     setError(null);
 
     try {
-      await apiClient("/api/produk/save-kepingan", {
+      await apiClient("/api/admin/produk/save-kepingan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kepinganList: previewKepingan }),

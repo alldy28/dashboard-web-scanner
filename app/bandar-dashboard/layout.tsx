@@ -11,6 +11,7 @@ import {
   Tag,
   LogOut,
   Loader2,
+  ShoppingCart,
 } from "lucide-react";
 
 // Tipe untuk item navigasi
@@ -32,6 +33,11 @@ const navItems: NavItem[] = [
     href: "/bandar-dashboard/customers",
     label: "Daftar Pelanggan",
     icon: Users,
+  },
+  {
+    href: "/bandar-dashboard/orders",
+    label: "Order Pusat",
+    icon: ShoppingCart,
   },
 ];
 

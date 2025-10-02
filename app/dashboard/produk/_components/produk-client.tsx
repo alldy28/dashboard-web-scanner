@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import {
-  PlusCircle,
   MoreHorizontal,
+  PlusCircle,
   ChevronLeft,
   ChevronRight,
+  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,10 +36,12 @@ import {
 import { Input } from "@/components/ui/input";
 import ProdukForm from "./produk-form";
 import { GenerateQrModal } from "./generate-qr-modal";
+import StockUpdateModal from "./StockUpdateModal";
 import { apiClient } from "@/lib/api";
+// PERBAIKAN 1: Menghapus impor 'Link' yang tidak digunakan
 
-// Tipe data untuk produk
-type Product = {
+// Tipe data ini akan diekspor dan digunakan oleh komponen lain
+export type Product = {
   id_produk: number;
   nama_produk: string;
   series_produk: string;
@@ -47,10 +50,16 @@ type Product = {
   harga_produk: string;
   harga_buyback: string | null;
   tahun_pembuatan: number;
+  stok_produk: number;
   upload_gambar?: string | null;
 };
 
-// Tipe untuk respons API yang dipaginasi
+export type StockUpdateResponse = {
+  id_produk: number;
+  nama_produk: string;
+  stok_produk: number;
+};
+
 type PaginatedProductsResponse = {
   data: Product[];
   currentPage: number;
@@ -68,23 +77,23 @@ export function ProdukClient() {
 
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
+  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchData = useCallback(async (page: number, search: string) => {
     setIsLoading(true);
     setError(null);
     try {
       const result: PaginatedProductsResponse = await apiClient(
-        `/api/produk?page=${page}&search=${search}`
+        `/api/admin/produk?page=${page}&search=${search}`
       );
       setProducts(result.data);
       setCurrentPage(result.currentPage);
       setTotalPages(result.totalPages);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Gagal memuat data.");
-      setProducts([]);
-      setCurrentPage(1);
-      setTotalPages(1);
     } finally {
       setIsLoading(false);
     }
@@ -92,30 +101,27 @@ export function ProdukClient() {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (currentPage !== 1) {
-        setCurrentPage(1);
-      } else {
-        fetchData(1, searchTerm);
-      }
+      fetchData(1, searchTerm);
     }, 500);
-
-    return () => {
-      clearTimeout(handler);
-    };
+    return () => clearTimeout(handler);
   }, [searchTerm, fetchData]);
 
+  // PERBAIKAN 3: Menambahkan 'searchTerm' sebagai dependency
   useEffect(() => {
     fetchData(currentPage, searchTerm);
-  }, [currentPage, fetchData]);
+  }, [currentPage, searchTerm, fetchData]);
 
   const handleOpenFormModal = (product: Product | null) => {
     setSelectedProduct(product);
     setIsFormModalOpen(true);
   };
-
   const handleOpenQrModal = (product: Product) => {
     setSelectedProduct(product);
     setIsQrModalOpen(true);
+  };
+  const handleOpenStockModal = (product: Product) => {
+    setSelectedProduct(product);
+    setIsStockModalOpen(true);
   };
 
   const handleSuccess = () => {
@@ -125,51 +131,34 @@ export function ProdukClient() {
     fetchData(currentPage, searchTerm);
   };
 
+  const handleStockUpdateSuccess = (updatedProduct: Product) => {
+    setProducts((currentList) =>
+      currentList.map((p) =>
+        p.id_produk === updatedProduct.id_produk ? updatedProduct : p
+      )
+    );
+  };
+
   const handleDelete = async (productId: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus produk ini?"))
       return;
-
     try {
-      await apiClient(`/api/produk/${productId}`, {
-        method: "DELETE",
-      });
+      await apiClient(`/api/admin/produk/${productId}`, { method: "DELETE" });
       alert("Produk berhasil dihapus!");
       fetchData(currentPage, searchTerm);
-    } catch (error: unknown) {
+    } catch (error) {
       alert(error instanceof Error ? error.message : "Terjadi kesalahan.");
     }
   };
 
   const formatCurrency = (value: string | null | undefined | number) => {
     const numValue = Number(value);
-    if (value === null || value === undefined || isNaN(numValue)) {
-      return "-";
-    }
+    if (value === null || value === undefined || isNaN(numValue)) return "-";
     return new Intl.NumberFormat("id-ID", {
       style: "currency",
       currency: "IDR",
       minimumFractionDigits: 0,
     }).format(numValue);
-  };
-
-  const calculateAdjustedBuyback = (product: Product): number | null => {
-    if (product.harga_buyback === null || product.harga_buyback === undefined) {
-      return null;
-    }
-    const buybackValue = parseFloat(product.harga_buyback);
-    if (isNaN(buybackValue)) {
-      return null;
-    }
-    if (product.series_produk !== "Silver Bullion") {
-      const weightMatch = String(product.gramasi_produk).match(/[\d.]+/);
-      const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
-      if (weight > 0) {
-        const pricePerGram = buybackValue / weight;
-        const adjustedPricePerGram = pricePerGram + 600;
-        return adjustedPricePerGram * weight;
-      }
-    }
-    return buybackValue;
   };
 
   return (
@@ -180,7 +169,6 @@ export function ProdukClient() {
         onSuccess={handleSuccess}
         initialData={selectedProduct}
       />
-
       <GenerateQrModal
         isOpen={isQrModalOpen}
         onClose={() => setIsQrModalOpen(false)}
@@ -189,8 +177,13 @@ export function ProdukClient() {
         namaProduk={selectedProduct?.nama_produk || ""}
         gramasiProduk={selectedProduct?.gramasi_produk || ""}
         seriesProduk={selectedProduct?.series_produk || ""}
-        // PERBAIKAN: Mengirimkan fineness ke modal
         fineness={selectedProduct?.fineness || ""}
+      />
+      <StockUpdateModal
+        isOpen={isStockModalOpen}
+        onClose={() => setIsStockModalOpen(false)}
+        onSuccess={handleStockUpdateSuccess}
+        product={selectedProduct}
       />
 
       <div className="flex items-center justify-between mb-4">
@@ -221,20 +214,16 @@ export function ProdukClient() {
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[80px]">Gambar</TableHead>
-                <TableHead>ID</TableHead>
                 <TableHead>Nama Produk</TableHead>
-                <TableHead>Series</TableHead>
-                <TableHead>Gramasi</TableHead>
-                <TableHead>Fineness</TableHead>
+                <TableHead>Stok</TableHead>
                 <TableHead className="text-right">Harga Jual</TableHead>
-                <TableHead className="text-right">Harga Buyback</TableHead>
                 <TableHead className="text-center">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Memuat data...
                   </TableCell>
                 </TableRow>
@@ -245,7 +234,7 @@ export function ProdukClient() {
                       <Image
                         src={
                           product.upload_gambar
-                            ? `https://apiv2.silverium.id/${product.upload_gambar}`
+                            ? `${API_URL}/${product.upload_gambar}`
                             : "https://via.placeholder.com/64"
                         }
                         alt={product.nama_produk}
@@ -256,17 +245,27 @@ export function ProdukClient() {
                       />
                     </TableCell>
                     <TableCell className="font-medium">
-                      {product.id_produk}
+                      <div>{product.nama_produk}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {product.series_produk} - {product.gramasi_produk}
+                      </div>
                     </TableCell>
-                    <TableCell>{product.nama_produk}</TableCell>
-                    <TableCell>{product.series_produk}</TableCell>
-                    <TableCell>{product.gramasi_produk}</TableCell>
-                    <TableCell>{product.fineness}</TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-lg">
+                          {product.stok_produk ?? 0}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleOpenStockModal(product)}
+                        >
+                          <Package className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(product.harga_produk)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {formatCurrency(calculateAdjustedBuyback(product))}
                     </TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>
@@ -280,7 +279,12 @@ export function ProdukClient() {
                           <DropdownMenuItem
                             onClick={() => handleOpenFormModal(product)}
                           >
-                            Edit
+                            Edit Detail
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleOpenStockModal(product)}
+                          >
+                            Update Stok
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             onClick={() => handleOpenQrModal(product)}
@@ -300,8 +304,8 @@ export function ProdukClient() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={9} className="h-24 text-center">
-                    Tidak ada produk yang ditemukan.
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Tidak ada produk.
                   </TableCell>
                 </TableRow>
               )}
@@ -319,8 +323,7 @@ export function ProdukClient() {
               onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
               disabled={currentPage <= 1 || isLoading}
             >
-              <ChevronLeft className="h-4 w-4" />
-              Sebelumnya
+              <ChevronLeft className="h-4 w-4" /> Sebelumnya
             </Button>
             <Button
               variant="outline"
@@ -330,8 +333,7 @@ export function ProdukClient() {
               }
               disabled={currentPage >= totalPages || isLoading}
             >
-              Berikutnya
-              <ChevronRight className="h-4 w-4" />
+              Berikutnya <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
         </CardFooter>

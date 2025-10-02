@@ -24,7 +24,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiClient } from "@/lib/api"; // PERBAIKAN: Impor apiClient
 
 // PERBAIKAN: Variabel API_BASE_URL dihapus karena tidak lagi digunakan
-// const API_BASE_URL = "https://apiv2.silverium.id";
+// const API_BASE_URL = "http://localhost:3010";
 
 export default function UpdateHargaPage() {
   const [currentSilverPrice, setCurrentSilverPrice] = useState<number | null>(
@@ -94,7 +94,7 @@ export default function UpdateHargaPage() {
 
     try {
       // PERBAIKAN: Menggunakan apiClient yang sudah menangani otentikasi
-      const data = await apiClient("/api/produk/adjust-prices", {
+      const data = await apiClient("/api/admin/produk/adjust-prices", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

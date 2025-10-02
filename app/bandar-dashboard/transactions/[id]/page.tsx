@@ -6,6 +6,7 @@ import { Loader2 } from "lucide-react";
 import TransactionStatus from "@/app/dashboard/transactions/[id]/components/TransactionStatus";
 import BandarActions from "./components/BandarActions";
 
+// Tipe data untuk detail transaksi bandar
 type BandarTransactionDetail = {
   transaction_id: number;
   customer_name: string;
@@ -42,6 +43,7 @@ export default function BandarDetailPage() {
         router.replace("/bandar-login");
         return;
       }
+
       try {
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_URL}/api/bandar/transactions/${id}`,
@@ -88,8 +90,9 @@ export default function BandarDetailPage() {
           {transaction.customer_email})
         </p>
       </div>
+
       <div className="bg-white shadow sm:rounded-lg p-6">
-        <h3 className="text-lg font-medium">Detail</h3>
+        <h3 className="text-lg font-medium">Detail Transaksi</h3>
         <div className="mt-4 grid grid-cols-1 gap-y-6 sm:grid-cols-2">
           <div>
             <dt className="text-sm font-medium text-gray-500">
@@ -110,24 +113,22 @@ export default function BandarDetailPage() {
             <dd className="mt-1">{transaction.amount} gram</dd>
           </div>
           <div>
-            <dt className="text-sm font-medium text-gray-500">Total Harga</dt>
-            <dd className="mt-1 font-semibold">
-              {transaction.total_price
-                ? new Intl.NumberFormat("id-ID", {
-                    style: "currency",
-                    currency: "IDR",
-                  }).format(transaction.total_price)
-                : "-"}
+            <dt className="text-sm font-medium text-gray-500">
+              No. Telepon Konsumen
+            </dt>
+            <dd className="mt-1 font-semibold text-gray-800">
+              {transaction.customer_phone || "Tidak tersedia"}
             </dd>
           </div>
         </div>
       </div>
+
       <div className="bg-white shadow sm:rounded-lg p-6">
         <h3 className="text-lg font-medium">Aksi Bandar</h3>
         <div className="mt-4">
           <BandarActions transaction={transaction} />
         </div>
-      </div>
+      </div> 
     </div>
   );
 }
