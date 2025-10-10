@@ -41,7 +41,7 @@ interface GenerateQrModalProps {
 // --- Konfigurasi Template untuk Silver Bullion ---
 const templates = {
   small: {
-    url: "http://localhost:3010/uploads/template_kecil.png",
+    url: "https://apiv2.silverium.id/uploads/template_kecil.png",
     qrX: 213,
     qrY: 190,
     qrSize: 230,
@@ -60,7 +60,7 @@ const templates = {
     font4: "25px Arial",
   },
   medium: {
-    url: "http://localhost:3010/uploads/template_sedang.png",
+    url: "https://apiv2.silverium.id/uploads/template_sedang.png",
     qrX: 250,
     qrY: 233,
     qrSize: 270,
@@ -79,7 +79,7 @@ const templates = {
     font4: "30px Arial",
   },
   large: {
-    url: "http://localhost:3010/uploads/template_besar.png",
+    url: "https://apiv2.silverium.id/uploads/template_besar.png",
     qrX: 285,
     qrY: 315,
     qrSize: 320,
@@ -122,7 +122,7 @@ export function GenerateQrModal({
   const isCustomSeries = seriesProduk === "Silver Custom";
   const isBullionSeries = seriesProduk === "Silver Bullion";
 
-  const WEBSITE_URL = "http://localhost:3012/verif";
+  const WEBSITE_URL = "https://app.silverium.id/verif";
 
   useEffect(() => {
     if (isOpen) {

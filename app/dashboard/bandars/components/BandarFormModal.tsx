@@ -53,7 +53,7 @@ interface BandarFormModalProps {
   bandarToEdit?: Bandar | null;
 }
 
-const API_WILAYAH_URL = "http://localhost:3010/wilayah";
+const API_WILAYAH_URL = "https://apiv2.silverium.id/wilayah";
 
 const fetchWilayah = async (url: string): Promise<Wilayah[]> => {
   try {

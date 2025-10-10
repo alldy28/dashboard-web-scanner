@@ -21,7 +21,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3010";
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://apiv2.silverium.id";
 const ITEMS_PER_PAGE = 10;
 
 type Product = {

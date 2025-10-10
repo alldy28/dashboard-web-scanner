@@ -6,7 +6,15 @@ import { useParams } from "next/navigation";
 import { parseISO, format } from "date-fns";
 import { id } from "date-fns/locale";
 
-const API_BASE_URL = "http://localhost:3010";
+// Impor semua ikon yang diperlukan dari @mui/icons-material
+import VerifiedIcon from "@mui/icons-material/Verified";
+import WarningAmberIcon from "@mui/icons-material/WarningAmber";
+import AutorenewIcon from "@mui/icons-material/Autorenew";
+import WhatsAppIcon from "@mui/icons-material/WhatsApp";
+import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
+import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
+
+const API_BASE_URL = "https://apiv2.silverium.id";
 
 type ProductPreview = {
   nama_produk: string;
@@ -38,26 +46,7 @@ type VerificationResult = {
 
 const LoadingState = ({ message }: { message: string }) => (
   <div className="text-center">
-    <svg
-      className="animate-spin h-8 w-8 text-white mx-auto"
-      xmlns="http://www.w3.org/2000/svg"
-      fill="none"
-      viewBox="0 0 24 24"
-    >
-      <circle
-        className="opacity-25"
-        cx="12"
-        cy="12"
-        r="10"
-        stroke="currentColor"
-        strokeWidth="4"
-      ></circle>
-      <path
-        className="opacity-75"
-        fill="currentColor"
-        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-      ></path>
-    </svg>
+    <AutorenewIcon className="animate-spin text-4xl text-white mx-auto" />
     <p className="mt-4 text-gray-400">{message}</p>
   </div>
 );
@@ -90,20 +79,7 @@ const BlockedState = ({
   return (
     <div className="bg-gray-800 border-2 border-red-500 rounded-2xl shadow-lg p-6 text-center">
       <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4">
-        <svg
-          className="w-10 h-10 text-red-400"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-          />
-        </svg>
+        <WarningAmberIcon className="text-4xl text-red-400" />
       </div>
       <h1 className="text-2xl font-bold text-red-400">Produk Diblokir</h1>
       <Image
@@ -142,9 +118,7 @@ const BlockedState = ({
         onClick={handleContactAdmin}
         className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg mt-2 hover:bg-green-600 transition-colors duration-300 flex items-center justify-center"
       >
-        <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-          <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.269.655 4.505 1.905 6.344l-1.225 4.485 4.635-1.215z" />
-        </svg>
+        <WhatsAppIcon className="mr-2" />
         Hubungi Admin via WhatsApp
       </button>
     </div>
@@ -184,25 +158,12 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
     <div className="bg-gray-800 border-2 border-[#c7a44a] rounded-2xl shadow-lg p-6">
       <div className="text-center mb-6">
         <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-500/10 mb-4">
-          <svg
-            className="w-10 h-10 text-green-400"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-            ></path>
-          </svg>
+          <VerifiedIcon sx={{ fontSize: "3rem" }} className=" text-green-400" />
         </div>
         <h1 className="text-2xl font-bold text-green-400">
-          Produk Terverifikasi Asli
+          Produk Verified
         </h1>
-        <p className="text-gray-400">Certificate of Original Authenticity</p>
+        <p className="text-gray-400">Original 100% Authenticity</p>
       </div>
       <div className="text-center mb-6">
         <Image
@@ -489,6 +450,11 @@ export default function VerificationPage() {
                   onClick={handlePlayAudio}
                   className="mt-4 inline-flex items-center gap-2 text-sm text-[#c7a44a] hover:text-yellow-300"
                 >
+                  {isAudioPlaying ? (
+                    <PauseCircleOutlineIcon />
+                  ) : (
+                    <PlayCircleOutlineIcon />
+                  )}
                   {isAudioPlaying ? "Hentikan Audio" : "Dengarkan Audio Produk"}
                 </button>
               )}
@@ -540,20 +506,7 @@ export default function VerificationPage() {
         return (
           <div className="bg-gray-800 border-2 border-red-500 rounded-2xl shadow-lg p-6 text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-500/10 mb-4">
-              <svg
-                className="w-10 h-10 text-red-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-                />
-              </svg>
+              <WarningAmberIcon className="text-4xl text-red-400" />
             </div>
             <h1 className="text-2xl font-bold text-red-400">
               {isSuspiciousError ? "Verifikasi Gagal" : "Terjadi Kesalahan"}
@@ -565,13 +518,7 @@ export default function VerificationPage() {
                 onClick={handleContactAdmin}
                 className="w-full bg-green-500 text-white font-bold py-3 px-4 rounded-lg mt-6 hover:bg-green-600 transition-colors duration-300 flex items-center justify-center"
               >
-                <svg
-                  className="w-5 h-5 mr-2"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.894 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.886-.001 2.269.655 4.505 1.905 6.344l-1.225 4.485 4.635-1.215z" />
-                </svg>
+                <WhatsAppIcon className="mr-2" />
                 Hubungi Admin via WhatsApp
               </button>
             )}
