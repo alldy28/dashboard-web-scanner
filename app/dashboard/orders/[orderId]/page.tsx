@@ -194,7 +194,7 @@ export default function AdminOrderDetailPage() {
     <div className="p-4 md:p-6 space-y-6">
       <div className="flex justify-between items-start">
         <div>
-            <Button asChild variant="outline" size="icon" className="mb-2"><Link href="/dashboard/transactionsproduk"><ArrowLeft className="h-4 w-4"/></Link></Button>
+            <Button asChild variant="outline" size="icon" className="mb-2"><Link href="/dashboard/transactions"><ArrowLeft className="h-4 w-4"/></Link></Button>
             <h1 className="text-xl md:text-2xl font-bold">Detail Pesanan Bandar #{order.order_id}</h1>
             <p className="text-muted-foreground">Oleh: {order.bandar_name}</p>
         </div>
