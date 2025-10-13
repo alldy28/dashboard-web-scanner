@@ -227,7 +227,7 @@ export function GenerateQrModal({
       const zip = new JSZip();
       const logoImg = new window.Image();
       logoImg.crossOrigin = "Anonymous";
-      logoImg.src = "/logo-Silverium.png";
+      logoImg.src = "/logoSilverium.png";
       await new Promise((resolve, reject) => {
         logoImg.onload = resolve;
         logoImg.onerror = reject;
