@@ -11,10 +11,39 @@ import Brightness4Icon from "@mui/icons-material/Brightness4"; // Ikon bulan
 import Brightness7Icon from "@mui/icons-material/Brightness7"; // Ikon matahari
 import PlayCircleOutlineIcon from "@mui/icons-material/PlayCircleOutline";
 import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
-
+import VerifiedIcon from "@mui/icons-material/Verified"; // Ikon untuk header
+import AutorenewIcon from "@mui/icons-material/Autorenew"; // Ikon untuk loading
 
 // --- Konfigurasi ---
 const API_BASE_URL = "https://apiv2.silverium.id";
+
+// --- CSS KEYFRAMES UNTUK ANIMASI STAMPEL ---
+const animationStyles = `
+  @keyframes stamp-effect {
+    0% {
+      opacity: 0;
+      transform: scale(1.5) rotate(-30deg) translateY(-50px);
+      filter: brightness(0.5) blur(5px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(0.9) rotate(5deg) translateY(0);
+      filter: brightness(1) blur(0);
+    }
+    75% {
+      transform: scale(1.05) rotate(-2deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+      filter: brightness(1) blur(0);
+    }
+  }
+  .animate-stamp-effect {
+    animation: stamp-effect 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    opacity: 0;
+  }
+`;
 
 // --- Tipe Data ---
 type Product = {
@@ -29,19 +58,16 @@ type Product = {
 };
 
 // --- Komponen ---
-// Komponen DetailRow diperbarui untuk mendukung dark mode secara internal
-
 const formatApiDate = (dateString: string | null) => {
-    if (!dateString) return "-";
-    try {
-      const date = parseISO(dateString);
-      return format(date, "d MMMM yyyy, HH:mm", { locale: id });
-    } catch (error) {
-      console.error("Invalid date format for:", dateString, error);
-      return "Tanggal tidak valid";
-    }
-  };
-
+  if (!dateString) return "-";
+  try {
+    const date = parseISO(dateString);
+    return format(date, "d MMMM yyyy, HH:mm", { locale: id });
+  } catch (error) {
+    console.error("Invalid date format for:", dateString, error);
+    return "Tanggal tidak valid";
+  }
+};
 
 const DetailRow = ({
   label,
@@ -52,7 +78,22 @@ const DetailRow = ({
 }) => (
   <div className="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
     <span className="text-gray-500 dark:text-gray-400 text-sm">{label}</span>
-    <span className="font-semibold text-gray-900 dark:text-white text-right">{value || "-"}</span>
+    <span className="font-semibold text-gray-900 dark:text-white text-right">
+      {value || "-"}
+    </span>
+  </div>
+);
+
+// --- KOMPONEN ANIMASI GAMBAR ---
+const AnimatedOriginalBadge = () => (
+  <div className="absolute bottom-0 right-0 z-10 w-28 h-28 transform -rotate-12 translate-x-5 translate-y-5">
+    <Image
+      src="/100 original.png" // Pastikan path ini benar dari folder public
+      alt="100% Original Badge"
+      layout="fill"
+      objectFit="contain"
+      className="animate-stamp-effect opacity-60" // Opacity diatur agar transparan
+    />
   </div>
 );
 
@@ -71,7 +112,9 @@ export default function GenericProductPage() {
 
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
-    const prefersDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+    const prefersDark =
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches;
     if (savedTheme && ["dark", "light"].includes(savedTheme)) {
       setTheme(savedTheme);
     } else if (prefersDark) {
@@ -147,27 +190,10 @@ export default function GenericProductPage() {
     return (
       <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white flex items-center justify-center min-h-screen p-4">
         <div className="text-center">
-          <svg
-            className="animate-spin h-8 w-8 text-gray-600 dark:text-white mx-auto"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
-          </svg>
-          <p className="mt-4 text-gray-500 dark:text-gray-400">Memuat detail produk...</p>
+          <AutorenewIcon className="animate-spin text-4xl text-gray-800 dark:text-white mx-auto" />
+          <p className="mt-4 text-gray-500 dark:text-gray-400">
+            Memuat detail produk...
+          </p>
         </div>
       </div>
     );
@@ -183,26 +209,35 @@ export default function GenericProductPage() {
 
   return (
     <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white flex items-center justify-center min-h-screen p-4 transition-colors duration-300">
+      <style>{animationStyles}</style>
       <main className="w-full max-w-md mx-auto relative">
-        <button
-          onClick={toggleTheme}
-          className="absolute -top-12 right-0 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-          aria-label="Toggle theme"
-        >
-          {theme === "dark" ? <Brightness7Icon /> : <Brightness4Icon />}
-        </button>
-
+        <div></div>
         {product && (
           <div className="bg-white dark:bg-gray-800 border-2 border-[#a18032] dark:border-[#c7a44a] rounded-2xl shadow-lg p-6">
             <div className="text-center mb-6">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 dark:bg-green-500/10 mb-4">
+                <VerifiedIcon
+                  sx={{ fontSize: "3rem" }}
+                  className="text-green-600 dark:text-green-400"
+                />
+              </div>
+              <div>
+                <button
+                  onClick={toggleTheme}
+                  className="absolute -top-12 right-0 p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                  aria-label="Toggle theme"
+                >
+                  {theme === "light" ? <Brightness7Icon /> : <Brightness4Icon />}
+                </button>
+              </div>
               <h1 className="text-2xl font-bold text-green-600 dark:text-green-400">
                 Detail Produk
               </h1>
               <p className="text-gray-500 dark:text-gray-400">
-                Informasi Produk Silverium
+                Informasi Produk Otentik Silverium
               </p>
             </div>
-            <div className="text-center mb-6">
+            <div className="relative flex justify-center items-center mb-6">
               <Image
                 src={
                   product.upload_gambar
@@ -212,8 +247,9 @@ export default function GenericProductPage() {
                 alt={product.nama_produk}
                 width={160}
                 height={160}
-                className="object-cover rounded-lg mx-auto mb-4 border-2 border-gray-200 dark:border-gray-700"
+                className="object-cover rounded-lg mx-auto border-2 border-gray-200 dark:border-gray-700"
               />
+              <AnimatedOriginalBadge />
             </div>
             <div className="space-y-3">
               <DetailRow
@@ -223,10 +259,10 @@ export default function GenericProductPage() {
               <DetailRow label="Series" value={product.series_produk} />
               <DetailRow label="Kadar" value={product.fineness} />
               <DetailRow label="Tahun" value={product.tahun_pembuatan} />
-              <DetailRow
+              {/* <DetailRow
                 label="Tanggal Produksi"
                 value={formatApiDate(product.tgl_produksi)}
-              />
+              /> */}
             </div>
             {product.upload_audio && (
               <div className="text-center mt-6">

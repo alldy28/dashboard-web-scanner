@@ -19,6 +19,51 @@ import Brightness7Icon from "@mui/icons-material/Brightness7"; // Sun icon for l
 
 const API_BASE_URL = "https://apiv2.silverium.id";
 
+// --- CSS KEYFRAMES UNTUK ANIMASI (Diperbarui dengan loading dan transisi lambat) ---
+const animationStyles = `
+  /* Animasi Stempel yang diperlambat */
+  @keyframes stamp-effect {
+    0% {
+      opacity: 0;
+      transform: scale(1.5) rotate(-30deg) translateY(-50px);
+      filter: brightness(0.5) blur(5px);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(0.9) rotate(5deg) translateY(0);
+      filter: brightness(1) blur(0);
+    }
+    75% {
+      transform: scale(1.05) rotate(-2deg);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+      filter: brightness(1) blur(0);
+    }
+  }
+  .animate-stamp-effect {
+    /* Durasi diubah dari 0.8s menjadi 1.2s */
+    animation: stamp-effect 1.2s cubic-bezier(0.23, 1, 0.32, 1) forwards;
+    opacity: 0;
+  }
+
+  /* Animasi baru untuk layar loading verifikasi */
+  @keyframes pulse-glow {
+    0%, 100% {
+      transform: scale(1);
+      filter: drop-shadow(0 0 5px rgba(44, 187, 99, 0.4));
+    }
+    50% {
+      transform: scale(1.1);
+      filter: drop-shadow(0 0 15px rgba(44, 187, 99, 0.8));
+    }
+  }
+  .animate-pulse-glow {
+    animation: pulse-glow 2s infinite ease-in-out;
+  }
+`;
+
 type ProductPreview = {
   nama_produk: string;
   upload_gambar: string | null;
@@ -47,10 +92,41 @@ type VerificationResult = {
   isOwned: boolean;
 };
 
+// --- KOMPONEN ANIMASI GAMBAR (Diperbarui untuk transparansi) ---
+const AnimatedOriginalBadge = () => (
+  <div className="absolute bottom-0 right-0 z-10 w-28 h-28 transform -rotate-12 translate-x-5 translate-y-5">
+    <Image
+      src="/100 original.png"
+      alt="100% Original Badge"
+      layout="fill"
+      objectFit="contain"
+      className="animate-stamp-effect opacity-60" // Mengubah opacity menjadi 60%
+    />
+  </div>
+);
+
 const LoadingState = ({ message }: { message: string }) => (
   <div className="text-center">
     <AutorenewIcon className="animate-spin text-4xl text-gray-800 dark:text-white mx-auto" />
     <p className="mt-4 text-gray-600 dark:text-gray-400">{message}</p>
+  </div>
+);
+
+// --- KOMPONEN BARU UNTUK LAYAR VERIFIKASI ---
+const VerifyingState = () => (
+  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-2xl shadow-lg p-6 text-center">
+    <div className="flex justify-center items-center mb-4 h-24">
+      <VerifiedIcon
+        sx={{ fontSize: "5rem" }}
+        className="text-green-500 dark:text-green-400 animate-pulse-glow"
+      />
+    </div>
+    <h1 className="text-xl font-bold text-gray-800 dark:text-white">
+      Memverifikasi Keaslian...
+    </h1>
+    <p className="mt-2 text-gray-500 dark:text-gray-400">
+      Sistem sedang memeriksa data produk Anda. Mohon tunggu sebentar.
+    </p>
   </div>
 );
 
@@ -177,7 +253,8 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
           Original 100% Authenticity
         </p>
       </div>
-      <div className="text-center mb-6">
+
+      <div className="relative flex justify-center items-center mb-6">
         <Image
           src={
             productData.upload_gambar
@@ -187,9 +264,11 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
           alt="Gambar Produk"
           width={160}
           height={160}
-          className="object-cover rounded-lg mx-auto mb-4 border-2 border-gray-200 dark:border-gray-700"
+          className="object-cover rounded-lg mx-auto border-2 border-gray-200 dark:border-gray-700"
         />
+        <AnimatedOriginalBadge />
       </div>
+
       <div className="space-y-3">
         <DetailRow
           label="Produk"
@@ -228,7 +307,7 @@ const ResultState = ({ result }: { result: VerificationResult }) => {
 
 export default function VerificationPage() {
   const [view, setView] = useState<
-    "loading" | "verification" | "result" | "error"
+    "loading" | "verification" | "verifying_product" | "result" | "error"
   >("loading");
   const [productPreview, setProductPreview] = useState<ProductPreview | null>(
     null
@@ -237,7 +316,6 @@ export default function VerificationPage() {
     useState<VerificationResult | null>(null);
   const [validationCode, setValidationCode] = useState("");
   const [error, setError] = useState("");
-  const [isVerifying, setIsVerifying] = useState(false);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
 
   const [location, setLocation] = useState<{
@@ -247,7 +325,6 @@ export default function VerificationPage() {
   const [locationError, setLocationError] = useState<string | null>(null);
   const [isRequestingLocation, setIsRequestingLocation] = useState(true);
 
-  // State for theme management
   const [theme, setTheme] = useState("dark");
 
   const params = useParams();
@@ -256,7 +333,6 @@ export default function VerificationPage() {
 
   const ADMIN_WHATSAPP_NUMBER = "6281234567890";
 
-  // Effect to set initial theme from localStorage and system preference
   useEffect(() => {
     const savedTheme = localStorage.getItem("theme");
     const prefersDark =
@@ -271,7 +347,6 @@ export default function VerificationPage() {
     }
   }, []);
 
-  // Effect to apply theme class to the document body
   useEffect(() => {
     document.documentElement.classList.remove("light", "dark");
     document.documentElement.classList.add(theme);
@@ -385,9 +460,14 @@ export default function VerificationPage() {
       setError("Kode validasi tidak boleh kosong.");
       return;
     }
-    setIsVerifying(true);
+
     setError("");
+    setView("verifying_product"); // <-- Tampilkan layar loading verifikasi
+
     try {
+      // Simulasi delay agar loading terlihat (opsional, hapus di produksi)
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+
       const bodyPayload = {
         uuid,
         kode_validasi: validationCode,
@@ -409,8 +489,6 @@ export default function VerificationPage() {
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Terjadi kesalahan.");
       setView("error");
-    } finally {
-      setIsVerifying(false);
     }
   };
 
@@ -441,6 +519,8 @@ export default function VerificationPage() {
     switch (view) {
       case "loading":
         return <LoadingState message="Memuat data produk..." />;
+      case "verifying_product": // <-- Case baru untuk loading verifikasi
+        return <VerifyingState />;
       case "verification":
         if (!productPreview) return null;
         if (productPreview.is_blocked) {
@@ -536,10 +616,9 @@ export default function VerificationPage() {
               />
               <button
                 onClick={handleVerify}
-                disabled={isVerifying}
-                className="w-full bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-[#c7a44a] dark:text-gray-900 dark:hover:bg-yellow-500 font-bold py-3 px-4 rounded-lg mt-6 transition-colors duration-300 flex items-center justify-center disabled:opacity-50"
+                className="w-full bg-yellow-500 text-white hover:bg-yellow-600 dark:bg-[#c7a44a] dark:text-gray-900 dark:hover:bg-yellow-500 font-bold py-3 px-4 rounded-lg mt-6 transition-colors duration-300 flex items-center justify-center"
               >
-                {isVerifying ? "Memverifikasi..." : "Cek Keaslian"}
+                Cek Keaslian
               </button>
             </div>
           </div>
@@ -580,6 +659,7 @@ export default function VerificationPage() {
 
   return (
     <div className="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white flex items-center justify-center min-h-screen p-4 transition-colors duration-300">
+      <style>{animationStyles}</style>
       <main className="w-full max-w-md mx-auto relative">
         <button
           onClick={toggleTheme}
