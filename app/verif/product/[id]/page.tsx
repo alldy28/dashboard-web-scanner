@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useParams } from "next/navigation";
-import { parseISO, format } from "date-fns";
-import { id } from "date-fns/locale";
+// import { parseISO, format } from "date-fns";
+// import { id } from "date-fns/locale";
 
 // --- Ikon Tambahan ---
 import Brightness4Icon from "@mui/icons-material/Brightness4"; // Ikon bulan
@@ -58,16 +58,16 @@ type Product = {
 };
 
 // --- Komponen ---
-const formatApiDate = (dateString: string | null) => {
-  if (!dateString) return "-";
-  try {
-    const date = parseISO(dateString);
-    return format(date, "d MMMM yyyy, HH:mm", { locale: id });
-  } catch (error) {
-    console.error("Invalid date format for:", dateString, error);
-    return "Tanggal tidak valid";
-  }
-};
+// const formatApiDate = (dateString: string | null) => {
+//   if (!dateString) return "-";
+//   try {
+//     const date = parseISO(dateString);
+//     return format(date, "d MMMM yyyy, HH:mm", { locale: id });
+//   } catch (error) {
+//     console.error("Invalid date format for:", dateString, error);
+//     return "Tanggal tidak valid";
+//   }
+// };
 
 const DetailRow = ({
   label,

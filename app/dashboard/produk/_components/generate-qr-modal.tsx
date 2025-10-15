@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { apiClient } from "@/lib/api";
+import Image from "next/image";
 
 // --- Tipe Data ---
 type Kepingan = {
@@ -423,10 +424,12 @@ export function GenerateQrModal({
                 <p className="text-sm text-muted-foreground mb-2">
                   Contoh Pratinjau (1 dari {previewKepingan.length}):
                 </p>
-                <img
+                <Image
                   src={previewImage}
                   alt="Pratinjau QR Code"
-                  className="rounded-md border w-full h-auto"
+                  width={500} // Example: Replace with the actual width of your QR code image
+                  height={500} // Example: Replace with the actual height
+                  className="rounded-md border w-full h-auto" // Your styling classes still work!
                 />
               </div>
             )}
