@@ -47,7 +47,7 @@ interface ProdukFormProps {
 }
 
 const seriesOptions = [
-  "Gift Series",
+  "Dirham",
   "Silver Bullion",
   "Edisi Khusus",
   "Silver Reguler",

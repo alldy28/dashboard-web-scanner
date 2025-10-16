@@ -98,6 +98,25 @@ const templates = {
     font3: "35px Arial",
     font4: "35px Arial",
   },
+  superlarge: {
+    url: "https://apiv2.silverium.id/uploads/template_sangat_besar.png",
+    qrX: 179,
+    qrY: 242,
+    qrSize: 190,
+    staticText: "Silver Bar",
+    staticTextX: 362,
+    staticTextY: 523,
+    weightX: 345,
+    weightY: 498,
+    finenessX: 345,
+    finenessY: 550,
+    textX: 280,
+    textY: 650,
+    font1: "bold 35px Arial",
+    font2: "25px monospace",
+    font3: "20px Arial",
+    font4: "20px Arial",
+  },
 };
 
 type TemplateKey = keyof typeof templates;
@@ -489,7 +508,7 @@ export function GenerateQrModal({
                     htmlFor="small"
                     className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                   >
-                    Kecil
+                    Kecil 3.3 - 10 gr
                   </Label>
                 </div>
                 <div>
@@ -502,7 +521,7 @@ export function GenerateQrModal({
                     htmlFor="medium"
                     className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                   >
-                    Sedang
+                    Sedang 25 - 50 gr
                   </Label>
                 </div>
                 <div>
@@ -515,7 +534,20 @@ export function GenerateQrModal({
                     htmlFor="large"
                     className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
                   >
-                    Besar
+                    Besar 80 -250 gr
+                  </Label>
+                </div>
+                <div>
+                  <RadioGroupItem
+                    value="superlarge"
+                    id="superlarge"
+                    className="peer sr-only"
+                  />
+                  <Label
+                    htmlFor="superlarge"
+                    className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                  >
+                    Sangat Besar 500 gr
                   </Label>
                 </div>
               </RadioGroup>
