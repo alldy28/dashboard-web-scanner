@@ -167,7 +167,7 @@ export default function MindArViewer() {
         <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
         {/* Tambahkan 'ref={targetRef}' pada entitas target.
-          Pastikan 'src' menunjuk ke ID video yang benar ('#cardVideo').
+          Pastikan 'src' menunjuk ke ID video yang benar ('#cardVideo')
         */}
         <a-entity ref={targetRef} mindar-image-target="targetIndex: 0">
           <a-plane
