@@ -112,10 +112,24 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* GANTI SELURUH BLOK @layer base ANDA DENGAN INI */
+
 @layer base {
+  /* Ini adalah perbaikan yang kita tambahkan:
+    Menghapus margin/padding default browser.
+  */
+  html,
+  body,
+  #__next {
+    @apply h-screen w-screen p-0 m-0 overflow-hidden;
+  }
+
+  /* Ini adalah kode asli Anda */
   * {
     @apply border-border outline-ring/50;
   }
+
+  /* Ini adalah kode asli Anda */
   body {
     @apply bg-background text-foreground;
   }

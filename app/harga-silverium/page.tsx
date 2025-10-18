@@ -169,7 +169,7 @@ export default function HargaSilveriumPage() {
       const weight = weightMatch ? parseFloat(weightMatch[0]) : 0;
       if (weight > 0) {
         const pricePerGram = buybackValue / weight;
-        const adjustedPricePerGram = pricePerGram + 600;
+        const adjustedPricePerGram = pricePerGram;
         return adjustedPricePerGram * weight;
       }
     }
