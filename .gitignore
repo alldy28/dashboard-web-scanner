@@ -39,17 +39,3 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-
-
-# Tambahkan file deklarasi tipe yang paling penting
-git add declarations.d.ts
-
-# Tambahkan komponen AR dan stylenya
-git add components/MindArViewer.tsx
-git add components/MindArViewer.module.css
-
-# Tambahkan halaman/rute AR scanner
-git add app/ar-scanner/
-
-# Tambahkan juga file tsconfig.json jika Anda mengubahnya
-git add tsconfig.json

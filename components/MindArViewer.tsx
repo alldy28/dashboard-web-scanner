@@ -6,7 +6,7 @@ import "aframe";
 import "mind-ar/dist/mindar-image-aframe.prod.js";
 
 // Import file CSS Module
-import styles from "./MindArViewer.module.css";
+import styles from "./MindArViewerStyle.module.css";
 
 /**
  * Komponen viewer AR dengan viewfinder di tengah.
