@@ -138,47 +138,6 @@ export default function MindArViewer() {
     // Container utama
     <div className={styles.container}>
       {/* Scene A-Frame untuk AR */}
-      <a-scene
-        ref={sceneRef}
-        mindar-image="imageTargetSrc: /targets/logo.mind; autoStart: true; maxTrack: 1; uiScanning: #scanningUI"
-        embedded
-        color-space="sRGB"
-        renderer="colorManagement: true, physicallyCorrectLights"
-        vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false"
-        className={styles.aScene}
-      >
-        <a-assets>
-          {/*
-            PENTING: Gunakan tag <video>, BUKAN <img>.
-            Atribut 'muted' WAJIB ada agar autoplay berfungsi di mobile.
-          */}
-          <video
-            id="cardVideo"
-            src="/splashSilver.mp4"
-            crossOrigin="anonymous"
-            autoPlay
-            loop
-            muted
-            playsInline
-          ></video>
-        </a-assets>
-
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
-
-        {/* Tambahkan 'ref={targetRef}' pada entitas target.
-          Pastikan 'src' menunjuk ke ID video yang benar ('#cardVideo').
-        */}
-        <a-entity ref={targetRef} mindar-image-target="targetIndex: 0">
-          <a-plane
-            src="#cardVideo"
-            position="0 0 0"
-            height="1.380"
-            width="1"
-            rotation="0 0 0"
-          ></a-plane>
-        </a-entity>
-      </a-scene>
 
       {/* UI Overlay */}
       <div id="scanningUI" className={styles.scanningUI}>
