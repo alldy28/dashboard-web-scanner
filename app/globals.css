@@ -121,7 +121,7 @@
   html,
   body,
   #__next {
-    @apply h-screen w-screen p-0 m-0 overflow-hidden;
+    @apply h-screen w-screen p-0 m-0;
   }
 
   /* Ini adalah kode asli Anda */
