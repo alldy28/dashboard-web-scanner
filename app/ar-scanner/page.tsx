@@ -28,7 +28,7 @@ const MindArViewer = dynamic(() => import("@/components/MindArViewer"), {
 });
 
 /**
- * Halaman ini didedikasikan untuk menampilkan viewer AR.
+ * Halaman ini didedikasikan untuk menampilkan viewer AR
  */
 export default function ARScannerPage() {
   // SOLUSI: Hapus tag <main> dan kembalikan komponen AR secara langsung

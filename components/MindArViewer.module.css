@@ -45,7 +45,7 @@
 }
 
 
-/* Tombol Tutup (Close Button) */
+/* Tombol Tutup (Close Button). */
 .closeButton {
   position: absolute;
   top: calc(20px + env(safe-area-inset-top));

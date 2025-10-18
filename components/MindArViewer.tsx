@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useRef } from "react";
-// Import A-Frame dan MindAR
+// Import A-Frame dan MindAR.
 import "aframe";
 import "mind-ar/dist/mindar-image-aframe.prod.js";
 
