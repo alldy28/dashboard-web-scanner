@@ -168,7 +168,7 @@ export default function HistoriHargaPage() {
 
   useEffect(() => {
     fetchHistory();
-  }, []); // Hanya fetch saat komponen pertama kali dimuat
+  }, [fetchHistory]); // Hanya fetch saat komponen pertama kali dimuat
 
   const handleFilter = () => {
     if (startDate && !endDate) {

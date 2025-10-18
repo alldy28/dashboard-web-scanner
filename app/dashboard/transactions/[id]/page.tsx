@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Image from "next/image";
 
 // --- Komponen Ikon SVG (Pengganti Lucide-React untuk portabilitas) ---
 const Loader2 = ({ className }: { className?: string }) => (
@@ -376,12 +377,11 @@ const ProofImageCard = ({
         target="_blank"
         rel="noopener noreferrer"
       >
-        <img
-          src={`${API_URL}/${imageUrl}`}
-          alt={title}
-          width={300}
-          height={200}
-          className="rounded-lg border object-cover hover:opacity-80 transition-opacity"
+        <Image
+          src="/link/ke/gambar.jpg"
+          alt="Contoh"
+          width={500} // Anda WAJIB menambahkan width
+          height={300} // dan height
         />
       </a>
     </InfoCard>
