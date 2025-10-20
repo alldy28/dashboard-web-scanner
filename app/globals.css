@@ -134,3 +134,14 @@
     @apply bg-background text-foreground;
   }
 }
+
+video#arjs-video {
+  width: 100vw !important;
+  height: 100dvh !important;
+  top: 0 !important;
+  left: 0 !important;
+  margin: 0 !important;
+  /* Tambahan: Memastikan video tidak gepeng/terdistorsi */
+  object-fit: cover !important;
+  z-index: -1 !important;
+}
