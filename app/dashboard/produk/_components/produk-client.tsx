@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import Image from "next/image";
+import React, { useState, useEffect, useCallback } from "react";
+// Hapus impor useRouter jika tidak digunakan secara langsung di sini
+// import { useRouter } from "next/navigation";
 import {
   MoreHorizontal,
   PlusCircle,
@@ -38,7 +39,7 @@ import ProdukForm from "./produk-form";
 import { GenerateQrModal } from "./generate-qr-modal";
 import StockUpdateModal from "./StockUpdateModal";
 import { apiClient } from "@/lib/api";
-// PERBAIKAN 1: Menghapus impor 'Link' yang tidak digunakan
+import Image from "next/image"; // Impor Image
 
 // Tipe data ini akan diekspor dan digunakan oleh komponen lain
 export type Product = {
@@ -49,6 +50,7 @@ export type Product = {
   fineness: string;
   harga_produk: string;
   harga_buyback: string | null;
+  harga_bandar?: string | null; // <-- TAMBAHKAN HARGA BANDAR (opsional)
   tahun_pembuatan: number;
   stok_produk: number;
   upload_gambar?: string | null;
@@ -86,6 +88,7 @@ export function ProdukClient() {
     setIsLoading(true);
     setError(null);
     try {
+      // Pastikan backend API Anda juga mengembalikan 'harga_bandar'
       const result: PaginatedProductsResponse = await apiClient(
         `/api/admin/produk?page=${page}&search=${search}`
       );
@@ -106,7 +109,6 @@ export function ProdukClient() {
     return () => clearTimeout(handler);
   }, [searchTerm, fetchData]);
 
-  // PERBAIKAN 3: Menambahkan 'searchTerm' sebagai dependency
   useEffect(() => {
     fetchData(currentPage, searchTerm);
   }, [currentPage, searchTerm, fetchData]);
@@ -217,13 +219,16 @@ export function ProdukClient() {
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Stok</TableHead>
                 <TableHead className="text-right">Harga Jual</TableHead>
+                {/* --- TAMBAHKAN HEADER HARGA BANDAR --- */}
+                <TableHead className="text-right">Harga Bandar</TableHead>
                 <TableHead className="text-center">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  {/* --- SESUAIKAN COLSPAN --- */}
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Memuat data...
                   </TableCell>
                 </TableRow>
@@ -235,13 +240,13 @@ export function ProdukClient() {
                         src={
                           product.upload_gambar
                             ? `${API_URL}/${product.upload_gambar}`
-                            : "https://via.placeholder.com/64"
+                            : "https://via.placeholder.com/64" // Placeholder jika tidak ada gambar
                         }
                         alt={product.nama_produk}
                         width={64}
                         height={64}
                         className="h-16 w-16 object-cover rounded-md"
-                        unoptimized={true}
+                        unoptimized={true} // Jika gambar dari API eksternal
                       />
                     </TableCell>
                     <TableCell className="font-medium">
@@ -266,6 +271,10 @@ export function ProdukClient() {
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(product.harga_produk)}
+                    </TableCell>
+                    {/* --- TAMBAHKAN CELL HARGA BANDAR --- */}
+                    <TableCell className="text-right">
+                      {formatCurrency(product.harga_bandar)}
                     </TableCell>
                     <TableCell className="text-center">
                       <DropdownMenu>
@@ -304,7 +313,8 @@ export function ProdukClient() {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
+                  {/* --- SESUAIKAN COLSPAN --- */}
+                  <TableCell colSpan={6} className="h-24 text-center">
                     Tidak ada produk.
                   </TableCell>
                 </TableRow>

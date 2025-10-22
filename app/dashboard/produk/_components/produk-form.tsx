@@ -32,6 +32,7 @@ type Product = {
   gramasi_produk: string;
   fineness: string;
   harga_produk: string;
+  harga_bandar?: string | null; // DITAMBAHKAN
   harga_buyback?: string | null;
   tahun_pembuatan: number;
   upload_gambar?: string | null;
@@ -67,6 +68,7 @@ export default function ProdukForm({
     gramasi_produk: "",
     fineness: "",
     harga_produk: "",
+    harga_bandar: "", // DITAMBAHKAN
     harga_buyback: "",
     tahun_pembuatan: new Date().getFullYear(),
   });
@@ -98,6 +100,7 @@ export default function ProdukForm({
         gramasi_produk: initialData.gramasi_produk || "",
         fineness: initialData.fineness || "",
         harga_produk: String(initialData.harga_produk || ""),
+        harga_bandar: String(initialData.harga_bandar || ""), // DITAMBAHKAN
         harga_buyback: String(initialData.harga_buyback || ""),
         tahun_pembuatan:
           initialData.tahun_pembuatan || new Date().getFullYear(),
@@ -118,6 +121,7 @@ export default function ProdukForm({
         gramasi_produk: "",
         fineness: "",
         harga_produk: "",
+        harga_bandar: "", // DITAMBAHKAN
         harga_buyback: "",
         tahun_pembuatan: new Date().getFullYear(),
       });
@@ -302,6 +306,23 @@ export default function ProdukForm({
                 className="col-span-3"
               />
             </div>
+
+            {/* --- BLOK BARU DITAMBAHKAN --- */}
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label htmlFor="harga_bandar" className="text-right">
+                Harga Bandar
+              </Label>
+              <Input
+                id="harga_bandar"
+                name="harga_bandar"
+                type="number"
+                value={formData.harga_bandar}
+                onChange={handleChange}
+                className="col-span-3"
+              />
+            </div>
+            {/* --- AKHIR BLOK BARU --- */}
+
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="harga_buyback" className="text-right">
                 Harga Buyback

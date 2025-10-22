@@ -27,6 +27,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "expo-haptics": "^15.0.7",
     "express-async-handler": "^1.2.0",
     "file-saver": "^2.0.5",
     "jszip": "^3.10.1",

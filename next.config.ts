@@ -32,9 +32,15 @@ const nextConfig = {
       {
         protocol: 'http',
         hostname: 'localhost',
-        port: '3010',
+        port: '4010',
         pathname: '/**' // Diubah dari '/uploads/**' menjadi '/**'
-      }
+      },
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '3012',
+        pathname: '/**' // Diubah dari '/uploads/**' menjadi '/**'
+      },
     ]
   }
 }
