@@ -11,7 +11,7 @@ type OperatingHour = {
 };
 
 // SESUAIKAN: Ganti dengan URL API admin Anda
-const API_URL = "http://localhost:4010/api/admin/store-hours";
+const API_URL = "https://apiv2.silverium.id/api/admin/store-hours";
 
 export default function StoreHoursPage() {
   const [hours, setHours] = useState<OperatingHour[]>([]);

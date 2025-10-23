@@ -42,7 +42,7 @@ interface GenerateQrModalProps {
 // --- Konfigurasi Template untuk Silver Bullion ---
 const templates = {
   small: {
-    url: "http://localhost:4010/uploads/template_kecil.png",
+    url: "https://apiv2.silverium.id/uploads/template_kecil.png",
     qrX: 213,
     qrY: 190,
     qrSize: 230,
@@ -61,7 +61,7 @@ const templates = {
     font4: "25px Arial",
   },
   medium: {
-    url: "http://localhost:4010/uploads/template_sedang.png",
+    url: "https://apiv2.silverium.id/uploads/template_sedang.png",
     qrX: 250,
     qrY: 233,
     qrSize: 270,
@@ -80,7 +80,7 @@ const templates = {
     font4: "30px Arial",
   },
   large: {
-    url: "http://localhost:4010/uploads/template_besar.png",
+    url: "https://apiv2.silverium.id/uploads/template_besar.png",
     qrX: 285,
     qrY: 315,
     qrSize: 320,
@@ -99,7 +99,7 @@ const templates = {
     font4: "35px Arial",
   },
   superlarge: {
-    url: "http://localhost:4010/uploads/template_sangat_besar.png",
+    url: "https://apiv2.silverium.id/uploads/template_sangat_besar.png",
     qrX: 179,
     qrY: 242,
     qrSize: 190,

@@ -43,7 +43,7 @@ type Berita = {
 };
 
 // --- API Config ---
-const API_BASE_URL = "http://localhost:4010"; // Ganti dengan URL API Anda
+const API_BASE_URL = "https://apiv2.silverium.id"; // Ganti dengan URL API Anda
 
 // --- Komponen Form Berita ---
 function BeritaForm({
