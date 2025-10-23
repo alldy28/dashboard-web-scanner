@@ -17,7 +17,7 @@ import PauseCircleOutlineIcon from "@mui/icons-material/PauseCircleOutline";
 import Brightness4Icon from "@mui/icons-material/Brightness4"; // Moon icon for dark
 import Brightness7Icon from "@mui/icons-material/Brightness7"; // Sun icon for light
 
-const API_BASE_URL = "https://apiv2.silverium.id";
+const API_BASE_URL = "http://localhost:4010";
 
 // --- CSS KEYFRAMES UNTUK ANIMASI (Diperbarui dengan loading dan transisi lambat) ---
 const animationStyles = `

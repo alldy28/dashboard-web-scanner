@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, AlertCircle } from "lucide-react";
 
 // --- Konfigurasi ---
-const API_BASE_URL = "https://apiv2.silverium.id";
+const API_BASE_URL = "http://localhost:4010";
 
 export default function KatalogPage() {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);

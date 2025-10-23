@@ -34,7 +34,7 @@ export default function LoginPage() {
     try {
       // --- PERBAIKAN: endpoint /api/admin/login ---
       const response = await fetch(
-        "https://apiv2.silverium.id/api/admin/login",
+        "http://localhost:4010/api/admin/login",
         {
           method: "POST",
           headers: {

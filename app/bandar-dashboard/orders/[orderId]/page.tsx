@@ -63,7 +63,7 @@ type OrderItem = {
 // PERBAIKAN: Status dibuat lebih spesifik
 type OrderStatus =
   | "pending-payment"
-  | "pre-order-pending-payment" // DITAMBAHKAN
+  | "pre-order-pending-payment"
   | "pending"
   | "approved"
   | "in_transit"
@@ -142,28 +142,60 @@ const PaymentForm = ({
   const [timeLeft, setTimeLeft] = useState("Menghitung waktu...");
 
   useEffect(() => {
-    if (!order.expires_at) {
-      setTimeLeft("Batas waktu tidak ditentukan.");
-      return;
+    // 1. Cek status order DULU.
+    // Jika order sudah tidak pending, tidak perlu ada timer.
+    if (order.status !== 'pending-payment' && order.status !== 'pre-order-pending-payment') {
+        if (order.status === 'rejected') {
+            setTimeLeft("Pesanan ini telah dibatalkan.");
+        } else if (order.status === 'approved' || order.status === 'completed' || order.status === 'in_transit') {
+            setTimeLeft("Pembayaran telah dikonfirmasi.");
+        }
+        return; // Hentikan effect, jangan jalankan interval
     }
+
+    // 2. Cek batas waktu jika status masih pending
+    if (!order.expires_at) {
+        setTimeLeft("Batas waktu tidak ditentukan.");
+        return; // Hentikan effect
+    }
+
+    // 3. Jalankan interval
     const interval = setInterval(() => {
-      const now = new Date().getTime();
-      const expiry = new Date(order.expires_at!).getTime();
-      const distance = expiry - now;
-      if (distance < 0) {
-        setTimeLeft("Waktu pembayaran telah habis.");
-        clearInterval(interval);
-        return;
-      }
-      const hours = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
-      );
-      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
-      setTimeLeft(`${hours}j ${minutes}m ${seconds}d`);
+        const now = new Date().getTime();
+        const expiry = new Date(order.expires_at!).getTime();
+        const distance = expiry - now;
+
+        // 4. Handle jika waktu habis
+        if (distance < 0) {
+            setTimeLeft("Waktu pembayaran telah habis.");
+            clearInterval(interval);
+            
+            // OPSIONAL TAPI SANGAT DISARANKAN:
+            // Panggil fungsi untuk refresh data order dari API.
+            // Ini akan menjalankan logika 'lazy update' di backend 
+            // dan mengubah status di UI menjadi 'rejected'.
+            // refreshOrder(); 
+            return;
+        }
+
+        // 5. Hitung sisa waktu
+        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+        // PERBAIKAN: Gunakan 'd' (detik) dan tambahkan padding 
+        // agar tampilan selalu 2 digit (misal: 02j 05m 09d)
+        setTimeLeft(
+            `${String(hours).padStart(2, '0')}j ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}d`
+        );
+
     }, 1000);
+
+    // Cleanup interval saat component unmount atau dependencies berubah
     return () => clearInterval(interval);
-  }, [order.expires_at]);
+
+// PENTING: Tambahkan order.status sebagai dependency
+}, [order.expires_at, order.status]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();

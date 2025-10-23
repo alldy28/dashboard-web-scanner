@@ -14,7 +14,7 @@ pnpm dev
 bun dev
 ```
 
-Open [https://apiv2.silverium.id/](https://apiv2.silverium.id/) with your browser to see the result.
+Open [http://localhost:4010/](http://localhost:4010/) with your browser to see the result.
 
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
