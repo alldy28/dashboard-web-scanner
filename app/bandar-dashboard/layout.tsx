@@ -20,8 +20,10 @@ import {
   LogOut,
   Loader2,
   ShoppingCart,
-  Menu, // Ikon untuk tombol hamburger
+  Menu,
+  Settings, // Ikon untuk Profil
 } from "lucide-react";
+import { Toaster } from "@/components/ui/sonner"; // Impor Toaster
 
 // Tipe untuk item navigasi
 type NavItem = {
@@ -48,14 +50,22 @@ const navItems: NavItem[] = [
     label: "Order Pusat",
     icon: ShoppingCart,
   },
+  {
+    href: "/bandar-dashboard/profile",
+    label: "Profil Saya",
+    icon: Settings,
+  },
 ];
 
 // Komponen NavLink (Bersih dari {" "})
 const NavLink = ({ href, label, icon: Icon }: NavItem) => {
   const pathname = usePathname();
+  // Logika isActive yang disempurnakan:
+  // 1. /bandar-dashboard/profile akan cocok dengan href /bandar-dashboard/profile
+  // 2. /bandar-dashboard akan cocok HANYA jika pathname persis /bandar-dashboard
   const isActive =
-    pathname.startsWith(href) &&
-    (href !== "/bandar-dashboard" || pathname === "/bandar-dashboard");
+    pathname === href ||
+    (pathname.startsWith(href) && href !== "/bandar-dashboard");
 
   return (
     <Link href={href} passHref>
@@ -159,9 +169,6 @@ export default function BandarDashboardLayout({
             {/* Konten Sheet (Menu Mobile) */}
             <SheetContent side="left" className="flex flex-col p-0 w-64">
               <div className="flex h-full max-h-screen flex-col gap-2">
-                {/* PERBAIKAN AKSESIBILITAS:
-                  Menggunakan <SheetHeader> dan <SheetTitle>
-                */}
                 <SheetHeader className="flex h-14 flex-row items-center border-b px-6">
                   <SheetTitle asChild>
                     <Link
@@ -177,8 +184,6 @@ export default function BandarDashboardLayout({
                 <nav className="flex-1 overflow-auto px-4 py-2">
                   <div className="flex flex-col gap-1">
                     {navItems.map((item) => (
-                      // PERBAIKAN: Bungkus dengan <SheetClose>
-                      // agar menu tertutup saat link diklik
                       <SheetClose asChild key={item.href}>
                         <NavLink {...item} />
                       </SheetClose>
@@ -211,6 +216,9 @@ export default function BandarDashboardLayout({
         {/* 4. Konten Halaman (Child) */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6">{children}</div>
       </main>
+
+      {/* Toaster untuk notifikasi (dari respons sebelumnya) */}
+      <Toaster richColors position="top-center" />
     </div>
   );
 }
