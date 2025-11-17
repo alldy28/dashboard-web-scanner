@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { useParams, useRouter } from "next/navigation"; // Impor useRouter
+import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,9 +21,9 @@ import {
   Upload,
   CheckCircle,
   ExternalLink,
-  Info, // Icon baru
+  Info,
+  FileText,
 } from "lucide-react";
-// Impor komponen AlertDialog
 import {
   AlertDialog,
   AlertDialogAction,
@@ -60,7 +60,7 @@ type OrderItem = {
   quantity: number;
   price_at_order: string;
 };
-// PERBAIKAN: Status dibuat lebih spesifik
+
 type OrderStatus =
   | "pending-payment"
   | "pre-order-pending-payment"
@@ -79,16 +79,16 @@ type OrderDetails = {
     created_at: string;
     expires_at: string | null;
     payment_proof_url: string | null;
+    notes: string | null;
   };
   items: OrderItem[];
   shipments: Shipment[];
 };
 
 // --- Helper ---
-// PENAMBAHAN: Mapping untuk status yang user-friendly
 const STATUS_MAP: Record<OrderStatus, string> = {
   "pending-payment": "Menunggu Pembayaran",
-  "pre-order-pending-payment": "Menunggu Pembayaran (PO)", // DITAMBAHKAN
+  "pre-order-pending-payment": "Menunggu Pembayaran (PO)",
   pending: "Menunggu Konfirmasi",
   approved: "Pembayaran Diterima",
   in_transit: "Dalam Pengiriman",
@@ -129,7 +129,7 @@ const InfoRow = ({
   </div>
 );
 
-// --- Komponen PaymentForm (Logika Upload DIPERBAIKI) ---
+// --- Komponen PaymentForm ---
 const PaymentForm = ({
   order,
   onPaymentSuccess,
@@ -142,60 +142,54 @@ const PaymentForm = ({
   const [timeLeft, setTimeLeft] = useState("Menghitung waktu...");
 
   useEffect(() => {
-    // 1. Cek status order DULU.
-    // Jika order sudah tidak pending, tidak perlu ada timer.
-    if (order.status !== 'pending-payment' && order.status !== 'pre-order-pending-payment') {
-        if (order.status === 'rejected') {
-            setTimeLeft("Pesanan ini telah dibatalkan.");
-        } else if (order.status === 'approved' || order.status === 'completed' || order.status === 'in_transit') {
-            setTimeLeft("Pembayaran telah dikonfirmasi.");
-        }
-        return; // Hentikan effect, jangan jalankan interval
+    if (
+      order.status !== "pending-payment" &&
+      order.status !== "pre-order-pending-payment"
+    ) {
+      if (order.status === "rejected") {
+        setTimeLeft("Pesanan ini telah dibatalkan.");
+      } else if (
+        order.status === "approved" ||
+        order.status === "completed" ||
+        order.status === "in_transit"
+      ) {
+        setTimeLeft("Pembayaran telah dikonfirmasi.");
+      }
+      return;
     }
 
-    // 2. Cek batas waktu jika status masih pending
     if (!order.expires_at) {
-        setTimeLeft("Batas waktu tidak ditentukan.");
-        return; // Hentikan effect
+      setTimeLeft("Batas waktu tidak ditentukan.");
+      return;
     }
 
-    // 3. Jalankan interval
     const interval = setInterval(() => {
-        const now = new Date().getTime();
-        const expiry = new Date(order.expires_at!).getTime();
-        const distance = expiry - now;
+      const now = new Date().getTime();
+      const expiry = new Date(order.expires_at!).getTime();
+      const distance = expiry - now;
 
-        // 4. Handle jika waktu habis
-        if (distance < 0) {
-            setTimeLeft("Waktu pembayaran telah habis.");
-            clearInterval(interval);
-            
-            // OPSIONAL TAPI SANGAT DISARANKAN:
-            // Panggil fungsi untuk refresh data order dari API.
-            // Ini akan menjalankan logika 'lazy update' di backend 
-            // dan mengubah status di UI menjadi 'rejected'.
-            // refreshOrder(); 
-            return;
-        }
+      if (distance < 0) {
+        setTimeLeft("Waktu pembayaran telah habis.");
+        clearInterval(interval);
+        return;
+      }
 
-        // 5. Hitung sisa waktu
-        const hours = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-        const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+      const hours = Math.floor(
+        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+      );
+      const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((distance % (1000 * 60)) / 1000);
 
-        // PERBAIKAN: Gunakan 'd' (detik) dan tambahkan padding 
-        // agar tampilan selalu 2 digit (misal: 02j 05m 09d)
-        setTimeLeft(
-            `${String(hours).padStart(2, '0')}j ${String(minutes).padStart(2, '0')}m ${String(seconds).padStart(2, '0')}d`
-        );
-
+      setTimeLeft(
+        `${String(hours).padStart(2, "0")}j ${String(minutes).padStart(
+          2,
+          "0"
+        )}m ${String(seconds).padStart(2, "0")}d`
+      );
     }, 1000);
 
-    // Cleanup interval saat component unmount atau dependencies berubah
     return () => clearInterval(interval);
-
-// PENTING: Tambahkan order.status sebagai dependency
-}, [order.expires_at, order.status]);
+  }, [order.expires_at, order.status]);
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -205,26 +199,23 @@ const PaymentForm = ({
     }
     setIsLoading(true);
 
-    // PERBAIKAN: Cek token di sini
     const token = localStorage.getItem("bandar_access_token");
     if (!token) {
       toast.error("Sesi habis, silakan login ulang.");
       setIsLoading(false);
-      // Arahkan ke login
-      window.location.href = "/bandar-login"; // Ganti dengan halaman login bandar Anda
+      window.location.href = "/bandar-login";
       return;
     }
 
     const formData = new FormData();
-    formData.append("payment_proof", file); // PERBAIKAN: Key harus 'payment_proof'
-    formData.append("orderId", order.order_id.toString()); // PERBAIKAN: Kirim 'orderId' di body
+    formData.append("payment_proof", file);
+    formData.append("orderId", order.order_id.toString());
 
     try {
-      // PERBAIKAN: Sesuaikan API endpoint dan method
       const res = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/bandar/orders/upload-proof`,
         {
-          method: "POST", // PERBAIKAN: Method POST
+          method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
         }
@@ -255,7 +246,6 @@ const PaymentForm = ({
         </CardDescription>
       </CardHeader>
       <CardContent>
-        {/* PENAMBAHAN: Info Rekening Pembayaran */}
         <div className="mb-4 rounded-lg border bg-background p-4">
           <h4 className="mb-2 flex items-center text-sm font-semibold">
             <Info className="mr-2 h-4 w-4" />
@@ -302,7 +292,7 @@ const PaymentForm = ({
   );
 };
 
-// --- Komponen ShipmentCard (UX Konfirmasi DIPERBAIKI) ---
+// --- Komponen ShipmentCard ---
 const ShipmentCard = ({
   shipment,
   onConfirm,
@@ -311,14 +301,11 @@ const ShipmentCard = ({
   onConfirm: (shipmentId: number) => void;
 }) => {
   const [isLoading, setIsLoading] = useState(false);
-  // State 'shipmentIdInput' DIHAPUS
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   const handleConfirm = async () => {
-    // Pengecekan input DIHAPUS
     setIsLoading(true);
     await onConfirm(shipment.shipment_id);
-    // setIsLoading(false); // Biarkan parent yang handle loading state
   };
 
   return (
@@ -357,7 +344,6 @@ const ShipmentCard = ({
           </div>
         )}
 
-        {/* PERBAIKAN: Mengganti Input manual dengan AlertDialog */}
         {shipment.status === "in_transit" && (
           <div className="space-y-2 pt-4 border-t mt-4">
             <AlertDialog>
@@ -402,7 +388,7 @@ const ShipmentCard = ({
 // --- Komponen Halaman Utama ---
 export default function OrderDetailPage() {
   const params = useParams();
-  const router = useRouter(); // PENAMBAHAN: Untuk redirect
+  const router = useRouter();
   const orderId = params.orderId as string;
   const [orderDetails, setOrderDetails] = useState<OrderDetails | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -415,11 +401,10 @@ export default function OrderDetailPage() {
       return;
     }
 
-    // PERBAIKAN: Cek token di sini untuk mengatasi 'jwt malformed'
     const token = localStorage.getItem("bandar_access_token");
     if (!token) {
       toast.error("Sesi Anda telah habis. Silakan login kembali.");
-      router.push("/bandar-login"); // Ganti dengan halaman login bandar Anda
+      router.push("/bandar-login");
       return;
     }
 
@@ -430,10 +415,9 @@ export default function OrderDetailPage() {
       });
       if (!res.ok) {
         const errData = await res.json();
-        // Jika token ditolak oleh server
         if (res.status === 401 || res.status === 403) {
           toast.error("Otentikasi gagal. Silakan login kembali.");
-          router.push("/bandar-login"); // Ganti dengan halaman login bandar Anda
+          router.push("/bandar-login");
           return;
         }
         throw new Error(errData.error || "Gagal memuat detail pesanan.");
@@ -445,18 +429,17 @@ export default function OrderDetailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [orderId, API_URL, router]); // Tambahkan router ke dependencies
+  }, [orderId, API_URL, router]);
 
   useEffect(() => {
     fetchOrderDetails();
   }, [fetchOrderDetails]);
 
   const handleConfirmReceipt = async (shipmentId: number) => {
-    // PERBAIKAN: Cek token di sini
     const token = localStorage.getItem("bandar_access_token");
     if (!token) {
       toast.error("Sesi Anda telah habis. Silakan login kembali.");
-      router.push("/bandar-login"); // Ganti dengan halaman login bandar Anda
+      router.push("/bandar-login");
       return;
     }
 
@@ -473,7 +456,7 @@ export default function OrderDetailPage() {
         throw new Error(errData.error || "Gagal konfirmasi.");
       }
       toast.success(`Pengiriman #${shipmentId} berhasil dikonfirmasi.`);
-      fetchOrderDetails(); // Muat ulang data
+      fetchOrderDetails();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
     }
@@ -553,9 +536,8 @@ export default function OrderDetailPage() {
             </CardContent>
           </Card>
 
-          {/* Sembunyikan 'Paket Pengiriman' jika pembayaran masih tertunda atau ditolak */}
           {order.status !== "pending-payment" &&
-            order.status !== "pre-order-pending-payment" && // DITAMBAHKAN
+            order.status !== "pre-order-pending-payment" &&
             order.status !== "rejected" && (
               <Card>
                 <CardHeader>
@@ -587,7 +569,7 @@ export default function OrderDetailPage() {
             <CardHeader>
               <CardTitle>Ringkasan Pesanan</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <InfoRow
                 icon={<Hash className="h-4 w-4" />}
                 label="ID Pesanan"
@@ -606,7 +588,6 @@ export default function OrderDetailPage() {
               <InfoRow
                 icon={<Package className="h-4 w-4" />}
                 label="Status Pesanan"
-                // PERBAIKAN: Gunakan status yang user-friendly
                 value={
                   <span className="font-bold">
                     {STATUS_MAP[order.status] || order.status}
@@ -620,11 +601,33 @@ export default function OrderDetailPage() {
                   {formatCurrency(order.total_price)}
                 </span>
               </div>
+              {/* ✅ TAMBAHAN: Invoice Button */}
+              <Button asChild className="w-full mt-2" variant="secondary">
+                <Link href={`/bandar-dashboard/orders/${orderId}/invoice`}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Lihat Invoice
+                </Link>
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Logika Tampilan Kartu Kondisional */}
-          {/* PERBAIKAN: Tampilkan form jika 'pending-payment' ATAU 'pre-order-pending-payment' */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Catatan dari Bandar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {order.notes ? (
+                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
+                  {order.notes}
+                </p>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Tidak ada catatan dari bandar untuk pesanan ini.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           {["pending-payment", "pre-order-pending-payment"].includes(
             order.status
           ) ? (
@@ -654,7 +657,7 @@ export default function OrderDetailPage() {
                   alt="Bukti Bayar"
                   width={300}
                   height={200}
-                  className="rounded-md border w-full h-auto" // Buat gambar responsif
+                  className="rounded-md border w-full h-auto"
                 />
               </CardContent>
             </Card>
