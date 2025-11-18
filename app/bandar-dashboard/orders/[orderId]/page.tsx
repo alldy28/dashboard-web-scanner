@@ -41,6 +41,10 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
+// --- KONFIGURASI ---
+// Ganti dengan nomor WhatsApp Admin (Format: Kode Negara + Nomor tanpa '+')
+const ADMIN_WA_NUMBER = "6281222224489";
+
 // --- Tipe Data ---
 type ShipmentItem = {
   nama_produk: string;
@@ -110,7 +114,7 @@ const formatDate = (dateString: string) =>
     year: "numeric",
   });
 
-// --- Komponen Anak ---
+// --- Komponen Anak: InfoRow ---
 const InfoRow = ({
   icon,
   label,
@@ -129,7 +133,7 @@ const InfoRow = ({
   </div>
 );
 
-// --- Komponen PaymentForm ---
+// --- Komponen Anak: PaymentForm (Dengan WA Redirect) ---
 const PaymentForm = ({
   order,
   onPaymentSuccess,
@@ -140,6 +144,10 @@ const PaymentForm = ({
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState("Menghitung waktu...");
+
+  // ✅ PERBAIKAN: Definisikan API_URL satu kali di sini
+  // Menggunakan .replace(/\/$/, "") untuk membuang slash di akhir jika ada
+  const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
 
   useEffect(() => {
     if (
@@ -200,6 +208,7 @@ const PaymentForm = ({
     setIsLoading(true);
 
     const token = localStorage.getItem("bandar_access_token");
+
     if (!token) {
       toast.error("Sesi habis, silakan login ulang.");
       setIsLoading(false);
@@ -212,23 +221,64 @@ const PaymentForm = ({
     formData.append("orderId", order.order_id.toString());
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/bandar/orders/upload-proof`,
-        {
-          method: "POST",
-          headers: { Authorization: `Bearer ${token}` },
-          body: formData,
-        }
-      );
+      // Gunakan API_URL yang sudah didefinisikan di atas
+      const res = await fetch(`${API_URL}/api/bandar/orders/upload-proof`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+
+      const responseData = await res.json();
+
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Gagal mengunggah bukti.");
+        throw new Error(responseData.error || "Gagal mengunggah bukti.");
       }
-      toast.success(
-        "Bukti pembayaran berhasil diunggah! Pesanan Anda sedang diproses."
-      );
+
+      toast.success("Bukti berhasil diunggah! Mengalihkan ke WhatsApp...");
+
+      // Cari path gambar dari respon backend
+      let imagePath =
+        responseData.payment_proof_url ||
+        responseData.payment_proof ||
+        responseData.path ||
+        responseData.url ||
+        responseData.file_path;
+
+      let uploadedImageUrl = "";
+
+      if (imagePath) {
+        // Pastikan path diawali dengan slash '/' jika belum ada
+        if (!imagePath.startsWith("/")) {
+          imagePath = `/${imagePath}`;
+        }
+        // Gabungkan API_URL + imagePath
+        uploadedImageUrl = `${API_URL}${imagePath}`;
+      } else {
+        uploadedImageUrl =
+          "(Link gambar tidak terbaca, silakan cek manual di sistem)";
+      }
+
+      // Pesan WhatsApp
+      const message = `Halo Admin, saya sudah melakukan pembayaran.
+      
+Detail Pesanan:
+Order ID: #${order.order_id}
+Total: ${formatCurrency(order.total_price)}
+Nama Bandar: ${order.bandar_name}
+
+Bukti Transfer:
+${uploadedImageUrl}
+
+Mohon segera dicek. Terima kasih.`;
+
+      const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(
+        message
+      )}`;
+      window.open(waUrl, "_blank");
+
       onPaymentSuccess();
     } catch (err) {
+      console.error(err);
       toast.error(err instanceof Error ? err.message : "Terjadi kesalahan");
     } finally {
       setIsLoading(false);
@@ -277,14 +327,14 @@ const PaymentForm = ({
           <Button
             type="submit"
             disabled={isLoading || timeLeft.includes("habis")}
-            className="w-full"
+            className="w-full bg-green-600 hover:bg-green-700 text-white"
           >
             {isLoading ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
             ) : (
               <Upload className="mr-2 h-4 w-4" />
             )}
-            Konfirmasi Pembayaran
+            Konfirmasi & Chat Admin
           </Button>
         </form>
       </CardContent>
@@ -292,7 +342,7 @@ const PaymentForm = ({
   );
 };
 
-// --- Komponen ShipmentCard ---
+// --- Komponen Anak: ShipmentCard ---
 const ShipmentCard = ({
   shipment,
   onConfirm,
@@ -385,7 +435,7 @@ const ShipmentCard = ({
   );
 };
 
-// --- Komponen Halaman Utama ---
+// --- Komponen Halaman Utama: OrderDetailPage ---
 export default function OrderDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -601,7 +651,6 @@ export default function OrderDetailPage() {
                   {formatCurrency(order.total_price)}
                 </span>
               </div>
-              {/* ✅ TAMBAHAN: Invoice Button */}
               <Button asChild className="w-full mt-2" variant="secondary">
                 <Link href={`/bandar-dashboard/orders/${orderId}/invoice`}>
                   <FileText className="mr-2 h-4 w-4" />

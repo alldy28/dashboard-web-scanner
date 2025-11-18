@@ -57,7 +57,6 @@ type StoreStatus = {
   message: string;
 };
 
-// Tipe baru untuk props CartContents
 interface CartContentsProps {
   cart: CartItem[];
   notes: string;
@@ -82,7 +81,8 @@ const CartContents: React.FC<CartContentsProps> = ({
   API_URL,
 }) => (
   <>
-    <div className="flex-grow overflow-y-auto mb-4 pr-3 -mr-3">
+    {/* Items Section - Scrollable */}
+    <div className="overflow-y-auto px-4 mb-4">
       {cart.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-10">
           Keranjang kosong.
@@ -140,8 +140,9 @@ const CartContents: React.FC<CartContentsProps> = ({
       )}
     </div>
 
+    {/* Footer Section - Always Visible */}
     {cart.length > 0 && (
-      <div className="pt-4 border-t border-gray-100 dark:border-gray-800 flex-shrink-0 space-y-4">
+      <div className="border-t border-gray-100 dark:border-gray-800 space-y-4 px-4 py-4">
         <div className="space-y-2">
           <Label htmlFor="notes" className="text-sm font-medium">
             Catatan untuk Admin{" "}
@@ -152,7 +153,7 @@ const CartContents: React.FC<CartContentsProps> = ({
             placeholder="Contoh: Kirim ke alamat kantor, bukan rumah..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="min-h-20 bg-white dark:bg-gray-800 text-sm resize-none"
+            className="min-h-16 bg-white dark:bg-gray-800 text-sm resize-none"
           />
         </div>
 
@@ -165,6 +166,7 @@ const CartContents: React.FC<CartContentsProps> = ({
           className="w-full"
           onClick={() => handleCreateOrder(false)}
           disabled={isSubmitting}
+          size="lg"
         >
           {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           Lanjut ke Pembayaran
@@ -181,7 +183,7 @@ export default function OrderProdukPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [notes, setNotes] = useState(""); // State 'notes' tetap di sini
+  const [notes, setNotes] = useState("");
   const [storeStatus, setStoreStatus] = useState<StoreStatus | null>(null);
   const [isStoreStatusLoading, setIsStoreStatusLoading] = useState(true);
   const [poModalOpen, setPoModalOpen] = useState(false);
@@ -191,6 +193,7 @@ export default function OrderProdukPage() {
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
   const STATUS_API_URL = `${API_URL}/api/store-status`;
 
+  // ✅ Check Store Status
   useEffect(() => {
     const checkStoreStatus = async () => {
       try {
@@ -211,10 +214,19 @@ export default function OrderProdukPage() {
     checkStoreStatus();
   }, [STATUS_API_URL]);
 
+  // ✅ Fetch Products
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     const token = localStorage.getItem("bandar_access_token");
+
+    // ✅ PERBAIKI: Cek token
+    if (!token) {
+      setError("Token tidak ditemukan. Silakan login ulang.");
+      setIsLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch(`${API_URL}/api/bandar/products-for-order`, {
         headers: { Authorization: `Bearer ${token}` },
@@ -237,6 +249,7 @@ export default function OrderProdukPage() {
     }
   }, [fetchProducts, storeStatus, isStoreStatusLoading]);
 
+  // ✅ Add to Cart
   const handleAddToCart = (product: Product) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find(
@@ -262,9 +275,16 @@ export default function OrderProdukPage() {
     });
   };
 
+  // ✅ Update Quantity
   const handleUpdateQuantity = (productId: number, newQuantity: number) => {
+    // ✅ PERBAIKI: Validasi quantity
+    if (newQuantity < 0) {
+      toast.error("Quantity tidak boleh negatif");
+      return;
+    }
+
     setCart((prevCart) => {
-      if (newQuantity <= 0) {
+      if (newQuantity === 0) {
         return prevCart.filter((item) => item.produk_id !== productId);
       }
       return prevCart.map((item) =>
@@ -273,14 +293,23 @@ export default function OrderProdukPage() {
     });
   };
 
+  // ✅ Create Order
   const handleCreateOrder = async (confirmPo = false) => {
     if (cart.length === 0) {
       toast.error("Keranjang belanja kosong.");
       return;
     }
+
+    // ✅ PERBAIKI: Cek token
+    const token = localStorage.getItem("bandar_access_token");
+    if (!token) {
+      toast.error("Sesi Anda telah habis. Silakan login ulang.");
+      router.push("/bandar-login");
+      return;
+    }
+
     setIsSubmitting(true);
     setError(null);
-    const token = localStorage.getItem("bandar_access_token");
     try {
       const res = await fetch(`${API_URL}/api/bandar/orders`, {
         method: "POST",
@@ -299,6 +328,7 @@ export default function OrderProdukPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal membuat pesanan.");
+
       if (data.status === "pre-order-required") {
         setPoDetails({ message: data.message, totalPrice: data.totalPrice });
         setPoModalOpen(true);
@@ -306,7 +336,36 @@ export default function OrderProdukPage() {
         toast.success(
           `Pesanan #${data.orderId} dibuat! Anda akan diarahkan ke halaman pembayaran.`
         );
-        setNotes(""); // Kosongkan catatan setelah berhasil
+
+        try {
+          // ✅ TAMBAHAN: Direct ke WhatsApp admin
+          const invoiceLink = `${window.location.origin}/dashboard/orders/${data.orderId}/invoice`;
+          const waMessage = `Halo Admin, saya sudah melakukan order. Mohon di cek pesanan saya:\n\n📄 Invoice: ${invoiceLink}\n\nTerimakasih!`;
+          const encodedMessage = encodeURIComponent(waMessage);
+
+          // Ambil nomor admin dari environment variable
+          const adminPhone =
+            process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_PHONE || "628123456789";
+
+          console.log("Admin Phone:", adminPhone);
+          console.log(
+            "WhatsApp URL:",
+            `https://wa.me/${adminPhone}?text=${encodedMessage}`
+          );
+
+          // Buka WhatsApp setelah 1 detik
+          setTimeout(() => {
+            window.open(
+              `https://wa.me/${adminPhone}?text=${encodedMessage}`,
+              "_blank"
+            );
+          }, 1000);
+        } catch (err) {
+          console.error("WhatsApp error:", err);
+        }
+
+        setNotes("");
+        setCart([]);
         router.push(`/bandar-dashboard/orders/${data.orderId}`);
       }
     } catch (err) {
@@ -321,6 +380,7 @@ export default function OrderProdukPage() {
     handleCreateOrder(true);
   };
 
+  // ✅ Filters & Calculations
   const filteredProducts = products.filter(
     (p) =>
       p.nama_produk.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -343,7 +403,7 @@ export default function OrderProdukPage() {
       minimumFractionDigits: 0,
     }).format(value);
 
-  // Tampilan loading, toko tutup, loading produk, dan error
+  // Status Display
   if (isStoreStatusLoading) {
     return (
       <div className="p-10 flex flex-col justify-center items-center h-screen">
@@ -382,7 +442,7 @@ export default function OrderProdukPage() {
         Buat Pesanan Stok
       </h1>
 
-      <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden">
+      <div className="flex-grow grid grid-cols-1 md:grid-cols-3 gap-4 overflow-hidden mb-20 md:mb-0">
         <Card className="md:col-span-2 flex flex-col overflow-hidden">
           <CardHeader className="flex-shrink-0">
             <div className="relative">
@@ -457,29 +517,31 @@ export default function OrderProdukPage() {
         </Card>
       </div>
 
-      <div className="md:hidden sticky bottom-0 bg-background p-4 border-t border-border shadow-lg">
+      {/* Keranjang Mobile - Floating Button + Sheet (DIPERBAIKI) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-2xl p-3">
         <Sheet>
           <SheetTrigger asChild>
-            <Button className="w-full" size="lg">
-              <div className="flex justify-between items-center w-full">
-                <div className="flex items-center gap-2">
-                  <ShoppingCart className="h-5 w-5" />
-                  <span className="font-semibold">Lihat Keranjang</span>
-                  {totalItems > 0 && (
-                    <Badge variant="secondary" className="px-2 py-0.5 text-sm">
-                      {totalItems}
-                    </Badge>
-                  )}
-                </div>
-                <span className="font-bold">{formatCurrency(totalPrice)}</span>
-              </div>
+            <Button className="w-full py-3 text-sm font-semibold">
+              <ShoppingCart className="h-4 w-4 mr-2" />
+              <span>Keranjang</span>
+              {totalItems > 0 && (
+                <Badge className="ml-2 bg-red-500 text-white px-2 py-0.5 text-xs">
+                  {totalItems}
+                </Badge>
+              )}
+              <span className="ml-auto font-bold">
+                {formatCurrency(totalPrice)}
+              </span>
             </Button>
           </SheetTrigger>
-          <SheetContent side="bottom" className="h-[80vh] flex flex-col">
-            <SheetHeader className="p-4 border-b">
-              <SheetTitle>Keranjang Anda</SheetTitle>
+          <SheetContent
+            side="bottom"
+            className="md:hidden rounded-t-3xl flex flex-col max-h-[80vh]"
+          >
+            <SheetHeader className="flex-shrink-0 mb-4 px-4">
+              <SheetTitle className="text-xl">Keranjang Belanja</SheetTitle>
             </SheetHeader>
-            <div className="flex-grow flex flex-col overflow-hidden p-4">
+            <div className="flex-grow overflow-y-auto">
               <CartContents
                 cart={cart}
                 notes={notes}
@@ -496,8 +558,9 @@ export default function OrderProdukPage() {
         </Sheet>
       </div>
 
+      {/* Modal Konfirmasi PO */}
       <Dialog open={poModalOpen} onOpenChange={setPoModalOpen}>
-        <DialogContent className="bg-white dark:bg-gray-800">
+        <DialogContent className="bg-white dark:bg-gray-800 w-[90%] rounded-lg max-w-md">
           <DialogHeader>
             <DialogTitle>Konfirmasi Pre-Order</DialogTitle>
             <DialogDescription>
@@ -505,11 +568,17 @@ export default function OrderProdukPage() {
               <strong> {formatCurrency(poDetails.totalPrice)}</strong>.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPoModalOpen(false)}>
+          <DialogFooter className="gap-2 flex flex-col-reverse sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setPoModalOpen(false)}
+              className="flex-1"
+            >
               Batal
             </Button>
-            <Button onClick={handleConfirmPo}>Ya, Lanjutkan Pesanan</Button>
+            <Button onClick={handleConfirmPo} className="flex-1">
+              Ya, Lanjutkan Pesanan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
