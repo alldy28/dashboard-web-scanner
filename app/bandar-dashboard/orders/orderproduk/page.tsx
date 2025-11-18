@@ -345,7 +345,7 @@ export default function OrderProdukPage() {
 
           // Ambil nomor admin dari environment variable
           const adminPhone =
-            process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_PHONE || "628123456789";
+            process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_PHONE || "6281222224489";
 
           console.log("Admin Phone:", adminPhone);
           console.log(
