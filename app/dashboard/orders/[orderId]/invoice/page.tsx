@@ -206,7 +206,7 @@ export default function AdminInvoicePage() {
           Pastikan API Anda sudah mengembalikan data invoice.
         </p>
         <Button asChild variant="outline" className="mt-4">
-          <Link href={`/dashboard/transactions/${orderId}`}>
+          <Link href={`/dashboard/orders/${orderId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Kembali ke Detail Pesanan
           </Link>
@@ -231,7 +231,7 @@ export default function AdminInvoicePage() {
       {/* Tombol Aksi di Atas */}
       <div className="max-w-4xl mx-auto mb-4 flex justify-between gap-2 print:hidden">
         <Button asChild variant="outline" size="sm">
-          <Link href={`/dashboard/transactions/${orderId}`}>
+          <Link href={`/dashboard/orders/${orderId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Kembali
           </Link>
