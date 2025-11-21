@@ -10,15 +10,36 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
-import { Loader2, ArrowLeft, Send, FileText, Printer, Eye } from "lucide-react";
+import {
+  Loader2,
+  ArrowLeft,
+  Send,
+  FileText,
+  Printer,
+  Eye,
+  CheckCircle, // Ikon untuk tombol proses
+  Check, // Ikon untuk approve
+  X, // Ikon untuk reject
+} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
-// Tipe Data Diperbarui
+// Tipe Data
 type OrderItem = {
   order_item_id: number;
   produk_id: number;
@@ -51,13 +72,13 @@ type OrderDetails = {
     status: string;
     created_at: string;
     payment_proof_url: string | null;
-    notes: string | null;
+    notes: string | null; // Catatan dari bandar
   };
   items: OrderItem[];
   shipments: Shipment[];
 };
 
-// Komponen untuk item yang bisa dipilih
+// Komponen Item Pengiriman
 const ShippableItem = ({
   item,
   onSelectionChange,
@@ -137,7 +158,13 @@ export default function AdminOrderDetailPage() {
     Map<number, { produk_id: number; quantity: number }>
   >(new Map());
   const [proofFile, setProofFile] = useState<File | null>(null);
+
+  // State Loading untuk berbagai aksi
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [isApproving, setIsApproving] = useState(false); // [BARU]
+  const [isRejecting, setIsRejecting] = useState(false); // [BARU]
+
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
   const fetchOrderDetails = useCallback(async () => {
@@ -181,6 +208,102 @@ export default function AdminOrderDetailPage() {
     },
     []
   );
+
+  // --- [BARU] Handle Approve Pesanan ---
+  const handleApproveOrder = async () => {
+    if (!orderId) return;
+    setIsApproving(true);
+    const token = localStorage.getItem("admin_access_token");
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/admin/orders/${orderId}/approve`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal menyetujui pesanan.");
+      }
+
+      toast.success("Pembayaran disetujui. Status pesanan: Approved.");
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsApproving(false);
+    }
+  };
+
+  // --- [BARU] Handle Reject Pesanan ---
+  const handleRejectOrder = async () => {
+    if (!orderId) return;
+    setIsRejecting(true);
+    const token = localStorage.getItem("admin_access_token");
+
+    try {
+      const res = await fetch(`${API_URL}/api/admin/orders/${orderId}/reject`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal menolak pesanan.");
+      }
+
+      toast.success("Pesanan ditolak.");
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  // --- Handle Proses Pesanan (Approve -> Processing) ---
+  const handleProcessOrder = async () => {
+    if (!orderId) return;
+    setIsProcessing(true);
+    const token = localStorage.getItem("admin_access_token");
+
+    try {
+      const res = await fetch(
+        `${API_URL}/api/admin/orders/${orderId}/process`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status: "processing" }),
+        }
+      );
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal memproses pesanan.");
+      }
+
+      toast.success(
+        "Status pesanan diubah menjadi 'Diproses'. Silakan kemas barang."
+      );
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const handleCreateShipment = async () => {
     if (itemsToShip.size === 0) {
@@ -275,7 +398,7 @@ export default function AdminOrderDetailPage() {
       <div className="flex justify-between items-start">
         <div>
           <Button asChild variant="outline" size="icon" className="mb-2">
-            <Link href="/dashboard/transactions">
+            <Link href="/dashboard/orders">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
@@ -283,14 +406,36 @@ export default function AdminOrderDetailPage() {
             Detail Pesanan Bandar #{order.order_id}
           </h1>
           <p className="text-muted-foreground">Oleh: {order.bandar_name}</p>
+          {/* Badge Status */}
+          <div className="mt-2">
+            <span
+              className={`px-2 py-1 rounded-full text-xs font-semibold
+              ${
+                order.status === "approved"
+                  ? "bg-green-100 text-green-800"
+                  : order.status === "processing"
+                  ? "bg-blue-100 text-blue-800"
+                  : order.status === "in_transit"
+                  ? "bg-purple-100 text-purple-800"
+                  : order.status === "pending"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-gray-100 text-gray-800"
+              }`}
+            >
+              {order.status}
+            </span>
+          </div>
         </div>
-        <Card className="p-3 text-center flex-shrink-0">
-          <CardDescription>Total Pendingan</CardDescription>
-          <CardTitle>{totalPendingItems} Pcs</CardTitle>
-        </Card>
+        <div className="flex gap-2">
+          <Card className="p-3 text-center flex-shrink-0">
+            <CardDescription>Total Pendingan</CardDescription>
+            <CardTitle>{totalPendingItems} Pcs</CardTitle>
+          </Card>
+        </div>
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
+        {/* KOLOM KIRI: Item & Pengiriman */}
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -389,14 +534,140 @@ export default function AdminOrderDetailPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* KOLOM KANAN: Aksi & Catatan */}
         <div className="md:col-span-1 space-y-6">
+          {/* --- [TAMBAHAN BARU] Card Verifikasi Pembayaran (Muncul jika status 'pending') --- */}
+          {order.status === "pending" && (
+            <Card className="border-yellow-200 bg-yellow-50">
+              <CardHeader>
+                <CardTitle className="text-yellow-900">
+                  Verifikasi Pembayaran
+                </CardTitle>
+                <CardDescription>
+                  Bukti pembayaran telah diunggah. Mohon cek dan konfirmasi.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <Button
+                  className="w-full bg-green-600 hover:bg-green-700"
+                  onClick={handleApproveOrder}
+                  disabled={isApproving || isRejecting}
+                >
+                  {isApproving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Check className="mr-2 h-4 w-4" />
+                  )}
+                  Terima Pembayaran (Approve)
+                </Button>
+
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200"
+                      disabled={isApproving || isRejecting}
+                    >
+                      {isRejecting ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <X className="mr-2 h-4 w-4" />
+                      )}
+                      Tolak Pesanan
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Tolak Pesanan?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Tindakan ini akan membatalkan pesanan dan tidak dapat
+                        dibatalkan. Bandar harus membuat pesanan ulang.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Batal</AlertDialogCancel>
+                      <AlertDialogAction
+                        className="bg-red-600 hover:bg-red-700"
+                        onClick={handleRejectOrder}
+                      >
+                        Ya, Tolak
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* --- [Card Proses Pesanan] (Muncul jika status 'approved') --- */}
+          {order.status === "approved" && (
+            <Card className="border-blue-200 bg-blue-50">
+              <CardHeader>
+                <CardTitle className="text-blue-900">Tindakan Admin</CardTitle>
+                <CardDescription>
+                  Pembayaran disetujui. Mulai proses pengemasan?
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button
+                  className="w-full bg-blue-600 hover:bg-blue-700"
+                  onClick={handleProcessOrder}
+                  disabled={isProcessing}
+                >
+                  {isProcessing ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  )}
+                  Proses Pesanan (Packing)
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* --- Kartu Catatan Bandar --- */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Catatan dari Bandar</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {order.notes ? (
+                <div className="bg-muted/50 p-3 rounded-md">
+                  <p className="text-sm text-foreground whitespace-pre-wrap italic">
+                    {order.notes}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">
+                  Tidak ada catatan dari bandar untuk pesanan ini.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Tombol Lihat Invoice */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Dokumen</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="w-full" variant="outline">
+                <Link href={`/dashboard/orders/${orderId}/invoice`}>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Lihat Invoice
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>Buat Pengiriman Baru</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {order.payment_proof_url && (
+                {order.payment_proof_url ? (
                   <div className="pb-4 border-b">
                     <Label>Bukti Pembayaran Bandar</Label>
                     <Button
@@ -411,6 +682,12 @@ export default function AdminOrderDetailPage() {
                         Lihat Bukti Pembayaran
                       </Link>
                     </Button>
+                  </div>
+                ) : (
+                  <div className="pb-4 border-b">
+                    <p className="text-sm text-amber-600 italic">
+                      Belum ada bukti pembayaran.
+                    </p>
                   </div>
                 )}
 
