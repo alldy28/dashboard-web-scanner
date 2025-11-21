@@ -398,7 +398,7 @@ export default function AdminOrderDetailPage() {
       <div className="flex justify-between items-start">
         <div>
           <Button asChild variant="outline" size="icon" className="mb-2">
-            <Link href="/dashboard/orders">
+            <Link href="/dashboard/transactions">
               <ArrowLeft className="h-4 w-4" />
             </Link>
           </Button>
