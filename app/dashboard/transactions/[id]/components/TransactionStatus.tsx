@@ -1,79 +1,152 @@
-"use client";
+import { Badge } from "@/components/ui/badge";
+import {
+  CheckCircle,
+  Clock,
+  Truck,
+  XCircle,
+  Package,
+  ShoppingCart,
+  HelpCircle,
+} from "lucide-react";
 
-import React from "react";
-
-type Status =
+export type Status =
   | "pending"
   | "approved"
   | "rejected"
+  | "processing"
   | "in_transit"
   | "ready_for_pickup"
   | "completed"
-  | 'pre-order';
+  | "pre-order"
+  | "pre-order-pending-payment";
 
 interface TransactionStatusProps {
-  status: Status;
+  status: Status | string;
 }
 
-const statusStyles: Record<Status, { text: string; bg: string; dot: string }> =
-  {
-    pending: {
-      text: "text-yellow-800",
-      bg: "bg-yellow-100",
-      dot: "bg-yellow-500",
-    },
-    approved: {
-      text: "text-green-800",
-      bg: "bg-green-100",
-      dot: "bg-green-500",
-    },
-    in_transit: {
-      text: "text-blue-800",
-      bg: "bg-blue-100",
-      dot: "bg-blue-500",
-    },
-    ready_for_pickup: {
-      text: "text-indigo-800",
-      bg: "bg-indigo-100",
-      dot: "bg-indigo-500",
-    },
-    completed: {
-      text: "text-gray-800",
-      bg: "bg-gray-200",
-      dot: "bg-gray-500",
-    },
-    rejected: {
-      text: "text-red-800",
-      bg: "bg-red-100",
-      dot: "bg-red-500",
-    },
-    "pre-order": {
-      text: "",
-      bg: "",
-      dot: ""
-    }
-  };
-
-const TransactionStatus: React.FC<TransactionStatusProps> = ({ status }) => {
-  const style = statusStyles[status] || statusStyles.completed;
-  const statusText = status
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (l) => l.toUpperCase());
-
-  return (
-    <span
-      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${style.bg} ${style.text}`}
-    >
-      <svg
-        className={`-ml-0.5 mr-1.5 h-2 w-2 ${style.dot}`}
-        fill="currentColor"
-        viewBox="0 0 8 8"
+export default function TransactionStatus({ status }: TransactionStatusProps) {
+  // [PERBAIKI] Cek apakah status ada. Jika tidak (undefined/null), jangan crash.
+  if (!status) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-gray-100 text-gray-500 border-gray-200 flex w-fit items-center gap-1"
       >
-        <circle cx={4} cy={4} r={3} />
-      </svg>
-      {statusText}
-    </span>
-  );
-};
+        <HelpCircle className="h-3 w-3" />
+        <span>Status Hilang</span>
+      </Badge>
+    );
+  }
 
-export default TransactionStatus;
+  // Normalisasi status ke lowercase untuk keamanan
+  const normalizedStatus = status.toLowerCase();
+
+  if (
+    normalizedStatus === "pending" ||
+    normalizedStatus === "pending-payment"
+  ) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-yellow-100 text-yellow-800 border-yellow-200 flex w-fit items-center gap-1"
+      >
+        <Clock className="h-3 w-3" />
+        <span>Menunggu</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "approved") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-green-100 text-green-800 border-green-200 flex w-fit items-center gap-1"
+      >
+        <CheckCircle className="h-3 w-3" />
+        <span>Disetujui</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "processing") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-blue-100 text-blue-800 border-blue-200 flex w-fit items-center gap-1"
+      >
+        <Package className="h-3 w-3" />
+        <span>Diproses</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "in_transit") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-purple-100 text-purple-800 border-purple-200 flex w-fit items-center gap-1"
+      >
+        <Truck className="h-3 w-3" />
+        <span>Dikirim</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "ready_for_pickup") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-indigo-100 text-indigo-800 border-indigo-200 flex w-fit items-center gap-1"
+      >
+        <Package className="h-3 w-3" />
+        <span>Siap Diambil</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "completed") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-emerald-100 text-emerald-800 border-emerald-200 flex w-fit items-center gap-1"
+      >
+        <CheckCircle className="h-3 w-3" />
+        <span>Selesai</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus === "rejected") {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-red-100 text-red-800 border-red-200 flex w-fit items-center gap-1"
+      >
+        <XCircle className="h-3 w-3" />
+        <span>Ditolak</span>
+      </Badge>
+    );
+  }
+
+  if (normalizedStatus.includes("pre-order")) {
+    return (
+      <Badge
+        variant="outline"
+        className="bg-orange-100 text-orange-800 border-orange-200 flex w-fit items-center gap-1"
+      >
+        <ShoppingCart className="h-3 w-3" />
+        <span>Pre-Order</span>
+      </Badge>
+    );
+  }
+
+  // Fallback untuk status yang tidak dikenali
+  return (
+    <Badge
+      variant="outline"
+      className="bg-gray-100 text-gray-800 border-gray-200 flex w-fit items-center gap-1"
+    >
+      <span>{status}</span>
+    </Badge>
+  );
+}
