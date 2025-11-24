@@ -1,14 +1,11 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-// Hapus impor useRouter jika tidak digunakan secara langsung di sini
-// import { useRouter } from "next/navigation";
 import {
   MoreHorizontal,
   PlusCircle,
   ChevronLeft,
   ChevronRight,
-  Package,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,13 +32,15 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import ProdukForm from "./produk-form";
 import { GenerateQrModal } from "./generate-qr-modal";
 import StockUpdateModal from "./StockUpdateModal";
 import { apiClient } from "@/lib/api";
-import Image from "next/image"; // Impor Image
+import Image from "next/image";
 
-// Tipe data ini akan diekspor dan digunakan oleh komponen lain
 export type Product = {
   id_produk: number;
   nama_produk: string;
@@ -50,10 +49,11 @@ export type Product = {
   fineness: string;
   harga_produk: string;
   harga_buyback: string | null;
-  harga_bandar?: string | null; // <-- TAMBAHKAN HARGA BANDAR (opsional)
+  harga_bandar?: string | null;
   tahun_pembuatan: number;
   stok_produk: number;
   upload_gambar?: string | null;
+  is_active: boolean;
 };
 
 export type StockUpdateResponse = {
@@ -81,6 +81,7 @@ export function ProdukClient() {
   const [isQrModalOpen, setIsQrModalOpen] = useState(false);
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isToggling, setIsToggling] = useState<number | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -88,7 +89,6 @@ export function ProdukClient() {
     setIsLoading(true);
     setError(null);
     try {
-      // Pastikan backend API Anda juga mengembalikan 'harga_bandar'
       const result: PaginatedProductsResponse = await apiClient(
         `/api/admin/produk?page=${page}&search=${search}`
       );
@@ -141,15 +141,60 @@ export function ProdukClient() {
     );
   };
 
+  // Fungsi untuk mengubah status aktif/tidak aktif
+  const handleToggleStatus = async (
+    productId: number,
+    currentStatus: boolean
+  ) => {
+    setIsToggling(productId);
+    try {
+      // Optimistic Update
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id_produk === productId ? { ...p, is_active: !currentStatus } : p
+        )
+      );
+
+      // Panggil API
+      await apiClient(`/api/admin/produk/${productId}/status`, {
+        method: "PUT",
+        // [PERBAIKI] Tambahkan header Content-Type agar server bisa membaca body JSON
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ is_active: !currentStatus }),
+      });
+
+      toast.success(
+        `Status produk berhasil diubah menjadi ${
+          !currentStatus ? "Aktif" : "Tidak Aktif"
+        }`
+      );
+    } catch (error) {
+      // Rollback jika gagal
+      setProducts((prev) =>
+        prev.map((p) =>
+          p.id_produk === productId ? { ...p, is_active: currentStatus } : p
+        )
+      );
+      toast.error("Gagal mengubah status produk");
+      console.error(error);
+    } finally {
+      setIsToggling(null);
+    }
+  };
+
   const handleDelete = async (productId: number) => {
     if (!window.confirm("Apakah Anda yakin ingin menghapus produk ini?"))
       return;
     try {
       await apiClient(`/api/admin/produk/${productId}`, { method: "DELETE" });
-      alert("Produk berhasil dihapus!");
+      toast.success("Produk berhasil dihapus!");
       fetchData(currentPage, searchTerm);
     } catch (error) {
-      alert(error instanceof Error ? error.message : "Terjadi kesalahan.");
+      toast.error(
+        error instanceof Error ? error.message : "Terjadi kesalahan."
+      );
     }
   };
 
@@ -199,7 +244,7 @@ export function ProdukClient() {
         <CardHeader>
           <CardTitle>Daftar Produk</CardTitle>
           <CardDescription>
-            Berikut adalah daftar semua produk yang terdaftar di sistem.
+            Kelola produk yang akan tampil di aplikasi bandar.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -219,63 +264,94 @@ export function ProdukClient() {
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Stok</TableHead>
                 <TableHead className="text-right">Harga Jual</TableHead>
-                {/* --- TAMBAHKAN HEADER HARGA BANDAR --- */}
                 <TableHead className="text-right">Harga Bandar</TableHead>
+                <TableHead className="text-center">Status</TableHead>
                 <TableHead className="text-center">Aksi</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading ? (
                 <TableRow>
-                  {/* --- SESUAIKAN COLSPAN --- */}
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     Memuat data...
                   </TableCell>
                 </TableRow>
               ) : products.length > 0 ? (
                 products.map((product) => (
-                  <TableRow key={product.id_produk}>
+                  <TableRow
+                    key={product.id_produk}
+                    className={!product.is_active ? "bg-muted/50" : ""}
+                  >
                     <TableCell>
-                      <Image
-                        src={
-                          product.upload_gambar
-                            ? `${API_URL}/${product.upload_gambar}`
-                            : "https://via.placeholder.com/64" // Placeholder jika tidak ada gambar
-                        }
-                        alt={product.nama_produk}
-                        width={64}
-                        height={64}
-                        className="h-16 w-16 object-cover rounded-md"
-                        unoptimized={true} // Jika gambar dari API eksternal
-                      />
+                      <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100">
+                        <Image
+                          src={
+                            product.upload_gambar
+                              ? `${API_URL}/${product.upload_gambar}`
+                              : "https://placehold.co/64x64/e2e8f0/cccccc?text=IMG"
+                          }
+                          alt={product.nama_produk}
+                          fill
+                          className={`object-cover ${
+                            !product.is_active ? "grayscale opacity-70" : ""
+                          }`}
+                          unoptimized={true}
+                        />
+                      </div>
                     </TableCell>
                     <TableCell className="font-medium">
-                      <div>{product.nama_produk}</div>
+                      <div
+                        className={
+                          !product.is_active ? "text-muted-foreground" : ""
+                        }
+                      >
+                        {product.nama_produk}
+                      </div>
                       <div className="text-xs text-muted-foreground">
                         {product.series_produk} - {product.gramasi_produk}
                       </div>
                     </TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-lg">
-                          {product.stok_produk ?? 0}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleOpenStockModal(product)}
-                        >
-                          <Package className="h-4 w-4" />
-                        </Button>
-                      </div>
+                      <Badge
+                        variant={
+                          product.stok_produk > 0 ? "outline" : "destructive"
+                        }
+                      >
+                        {product.stok_produk}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       {formatCurrency(product.harga_produk)}
                     </TableCell>
-                    {/* --- TAMBAHKAN CELL HARGA BANDAR --- */}
                     <TableCell className="text-right">
                       {formatCurrency(product.harga_bandar)}
                     </TableCell>
+
+                    {/* Kolom Toggle Status */}
+                    <TableCell className="text-center">
+                      <div className="flex flex-col items-center gap-1">
+                        <Switch
+                          checked={product.is_active}
+                          onCheckedChange={() =>
+                            handleToggleStatus(
+                              product.id_produk,
+                              product.is_active
+                            )
+                          }
+                          disabled={isToggling === product.id_produk}
+                        />
+                        <span
+                          className={`text-[10px] font-medium ${
+                            product.is_active
+                              ? "text-green-600"
+                              : "text-gray-500"
+                          }`}
+                        >
+                          {product.is_active ? "Aktif" : "Non-Aktif"}
+                        </span>
+                      </div>
+                    </TableCell>
+
                     <TableCell className="text-center">
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -313,8 +389,7 @@ export function ProdukClient() {
                 ))
               ) : (
                 <TableRow>
-                  {/* --- SESUAIKAN COLSPAN --- */}
-                  <TableCell colSpan={6} className="h-24 text-center">
+                  <TableCell colSpan={7} className="h-24 text-center">
                     Tidak ada produk.
                   </TableCell>
                 </TableRow>

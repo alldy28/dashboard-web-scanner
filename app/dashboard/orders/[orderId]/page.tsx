@@ -647,7 +647,7 @@ export default function AdminOrderDetailPage() {
           </Card>
 
           {/* Tombol Lihat Invoice */}
-          <Card>
+          {/* <Card>
             <CardHeader>
               <CardTitle>Dokumen</CardTitle>
             </CardHeader>
@@ -659,7 +659,7 @@ export default function AdminOrderDetailPage() {
                 </Link>
               </Button>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card>
             <CardHeader>
