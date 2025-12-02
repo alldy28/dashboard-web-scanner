@@ -23,6 +23,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+// ❌ HAPUS IMPORT INI (Kita pakai HTML biasa saja)
+// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Loader2,
   Search,
@@ -30,11 +32,13 @@ import {
   Plus,
   Minus,
   Store,
+  MapPin,
+  CheckCircle2, // Icon untuk indikator pilihan
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
 
-// Tipe Data
+// --- Tipe Data ---
 type Product = {
   id_produk: number;
   nama_produk: string;
@@ -62,27 +66,36 @@ interface CartContentsProps {
   notes: string;
   totalPrice: number;
   isSubmitting: boolean;
+  addressType: "main" | "other";
+  otherAddress: string;
   handleUpdateQuantity: (productId: number, newQuantity: number) => void;
   handleCreateOrder: (confirmPo: boolean) => void;
   setNotes: (notes: string) => void;
+  setAddressType: (type: "main" | "other") => void;
+  setOtherAddress: (address: string) => void;
   formatCurrency: (value: number) => string;
   API_URL: string;
 }
 
+// --- Komponen Cart Contents ---
 const CartContents: React.FC<CartContentsProps> = ({
   cart,
   notes,
   totalPrice,
   isSubmitting,
+  addressType,
+  otherAddress,
   handleUpdateQuantity,
   handleCreateOrder,
   setNotes,
+  setAddressType,
+  setOtherAddress,
   formatCurrency,
   API_URL,
 }) => (
   <>
     {/* Items Section - Scrollable */}
-    <div className="overflow-y-auto px-4 mb-4">
+    <div className="overflow-y-auto px-4 mb-4 flex-grow">
       {cart.length === 0 ? (
         <p className="text-sm text-gray-500 dark:text-gray-400 text-center py-10">
           Keranjang kosong.
@@ -140,24 +153,105 @@ const CartContents: React.FC<CartContentsProps> = ({
       )}
     </div>
 
-    {/* Footer Section - Always Visible */}
+    {/* Footer Section - Form Alamat & Notes */}
     {cart.length > 0 && (
-      <div className="border-t border-gray-100 dark:border-gray-800 space-y-4 px-4 py-4">
+      <div className="border-t border-gray-100 dark:border-gray-800 space-y-4 px-4 py-4 bg-white dark:bg-gray-900">
+        {/* --- PILIHAN ALAMAT (CUSTOM RADIO) --- */}
+        <div className="space-y-3 border-b pb-4 border-gray-100">
+          <Label className="text-sm font-bold flex items-center gap-2">
+            <MapPin className="h-4 w-4" /> Pilih Alamat Pengiriman
+          </Label>
+
+          <div className="grid grid-cols-1 gap-2">
+            {/* Opsi 1: Alamat Utama */}
+            <div
+              onClick={() => setAddressType("main")}
+              className={`
+                relative flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all
+                ${
+                  addressType === "main"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-gray-200 hover:bg-gray-50"
+                }
+              `}
+            >
+              <div
+                className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                  addressType === "main" ? "border-primary" : "border-gray-400"
+                }`}
+              >
+                {addressType === "main" && (
+                  <div className="h-2 w-2 rounded-full bg-primary" />
+                )}
+              </div>
+              <div className="text-sm font-medium">
+                Alamat Utama (Sesuai Profil)
+              </div>
+              {addressType === "main" && (
+                <CheckCircle2 className="h-4 w-4 text-primary absolute right-3" />
+              )}
+            </div>
+
+            {/* Opsi 2: Alamat Lain */}
+            <div
+              onClick={() => setAddressType("other")}
+              className={`
+                relative flex items-center space-x-3 rounded-lg border p-3 cursor-pointer transition-all
+                ${
+                  addressType === "other"
+                    ? "border-primary bg-primary/5 ring-1 ring-primary"
+                    : "border-gray-200 hover:bg-gray-50"
+                }
+              `}
+            >
+              <div
+                className={`h-4 w-4 rounded-full border flex items-center justify-center ${
+                  addressType === "other" ? "border-primary" : "border-gray-400"
+                }`}
+              >
+                {addressType === "other" && (
+                  <div className="h-2 w-2 rounded-full bg-primary" />
+                )}
+              </div>
+              <div className="text-sm font-medium">Kirim ke Alamat Lain</div>
+              {addressType === "other" && (
+                <CheckCircle2 className="h-4 w-4 text-primary absolute right-3" />
+              )}
+            </div>
+          </div>
+
+          {/* Textarea Alamat Lain (Conditional) */}
+          {addressType === "other" && (
+            <div className="mt-2 animate-in fade-in slide-in-from-top-2">
+              <Label className="text-xs text-gray-500 mb-1 block">
+                Tulis alamat lengkap penerima:
+              </Label>
+              <Textarea
+                placeholder="Jln. Contoh No. 123, Kecamatan, Kota, Kode Pos (Penerima: Budi - 0812345678)"
+                value={otherAddress}
+                onChange={(e) => setOtherAddress(e.target.value)}
+                className="min-h-[80px] text-sm bg-yellow-50/50 border-yellow-200 focus:border-yellow-400"
+              />
+            </div>
+          )}
+        </div>
+
+        {/* --- CATATAN --- */}
         <div className="space-y-2">
           <Label htmlFor="notes" className="text-sm font-medium">
             Catatan untuk Admin{" "}
-            <span className="text-gray-400">(Opsional)</span>
+            <span className="text-gray-400 font-normal">(Opsional)</span>
           </Label>
           <Textarea
             id="notes"
-            placeholder="Contoh: Kirim ke alamat kantor, bukan rumah..."
+            placeholder="Contoh: Jangan lupa bubble wrap tebal..."
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
-            className="min-h-16 bg-white dark:bg-gray-800 text-sm resize-none"
+            className="min-h-[60px] bg-white dark:bg-gray-800 text-sm resize-none"
           />
         </div>
 
-        <div className="flex justify-between text-lg font-bold">
+        <div className="flex justify-between text-lg font-bold pt-2">
           <span>Total</span>
           <span>{formatCurrency(totalPrice)}</span>
         </div>
@@ -176,6 +270,7 @@ const CartContents: React.FC<CartContentsProps> = ({
   </>
 );
 
+// --- Page Component ---
 export default function OrderProdukPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [cart, setCart] = useState<CartItem[]>([]);
@@ -183,7 +278,12 @@ export default function OrderProdukPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // State Form
   const [notes, setNotes] = useState("");
+  const [addressType, setAddressType] = useState<"main" | "other">("main");
+  const [otherAddress, setOtherAddress] = useState("");
+
   const [storeStatus, setStoreStatus] = useState<StoreStatus | null>(null);
   const [isStoreStatusLoading, setIsStoreStatusLoading] = useState(true);
   const [poModalOpen, setPoModalOpen] = useState(false);
@@ -220,7 +320,6 @@ export default function OrderProdukPage() {
     setError(null);
     const token = localStorage.getItem("bandar_access_token");
 
-    // ✅ PERBAIKI: Cek token
     if (!token) {
       setError("Token tidak ditemukan. Silakan login ulang.");
       setIsLoading(false);
@@ -277,7 +376,6 @@ export default function OrderProdukPage() {
 
   // ✅ Update Quantity
   const handleUpdateQuantity = (productId: number, newQuantity: number) => {
-    // ✅ PERBAIKI: Validasi quantity
     if (newQuantity < 0) {
       toast.error("Quantity tidak boleh negatif");
       return;
@@ -300,7 +398,12 @@ export default function OrderProdukPage() {
       return;
     }
 
-    // ✅ PERBAIKI: Cek token
+    // Validasi Alamat Lain
+    if (addressType === "other" && !otherAddress.trim()) {
+      toast.error("Harap isi alamat pengiriman lengkap.");
+      return;
+    }
+
     const token = localStorage.getItem("bandar_access_token");
     if (!token) {
       toast.error("Sesi Anda telah habis. Silakan login ulang.");
@@ -324,6 +427,9 @@ export default function OrderProdukPage() {
           })),
           confirmPo,
           notes: notes,
+          // ✅ Data Alamat Baru
+          address_type: addressType,
+          shipping_address_text: addressType === "other" ? otherAddress : null,
         }),
       });
       const data = await res.json();
@@ -337,23 +443,20 @@ export default function OrderProdukPage() {
           `Pesanan #${data.orderId} dibuat! Anda akan diarahkan ke halaman pembayaran.`
         );
 
+        // Direct WhatsApp
         try {
-          // ✅ TAMBAHAN: Direct ke WhatsApp admin
           const invoiceLink = `${window.location.origin}/dashboard/orders/${data.orderId}/invoice`;
-          const waMessage = `Halo Admin, saya sudah melakukan order. Mohon di cek pesanan saya:\n\n📄 Invoice: ${invoiceLink}\n\nTerimakasih!`;
+          const addressMsg =
+            addressType === "other"
+              ? `\n📍 *Alamat Kirim:* ${otherAddress}`
+              : "\n📍 *Alamat Kirim:* Sesuai Data Profil";
+
+          const waMessage = `Halo Admin, saya sudah melakukan order. Mohon di cek pesanan saya:\n\n📄 Invoice: ${invoiceLink}${addressMsg}\n\nTerimakasih!`;
           const encodedMessage = encodeURIComponent(waMessage);
 
-          // Ambil nomor admin dari environment variable
           const adminPhone =
             process.env.NEXT_PUBLIC_ADMIN_WHATSAPP_PHONE || "6281222224489";
 
-          console.log("Admin Phone:", adminPhone);
-          console.log(
-            "WhatsApp URL:",
-            `https://wa.me/${adminPhone}?text=${encodedMessage}`
-          );
-
-          // Buka WhatsApp setelah 1 detik
           setTimeout(() => {
             window.open(
               `https://wa.me/${adminPhone}?text=${encodedMessage}`,
@@ -365,6 +468,7 @@ export default function OrderProdukPage() {
         }
 
         setNotes("");
+        setOtherAddress("");
         setCart([]);
         router.push(`/bandar-dashboard/orders/${data.orderId}`);
       }
@@ -495,21 +599,26 @@ export default function OrderProdukPage() {
           </CardContent>
         </Card>
 
+        {/* Desktop Cart */}
         <Card className="hidden md:flex flex-col overflow-hidden">
           <CardHeader className="flex-shrink-0">
             <CardTitle className="flex items-center">
               <ShoppingCart className="mr-2 h-5 w-5" /> Keranjang
             </CardTitle>
           </CardHeader>
-          <CardContent className="flex-grow flex flex-col p-4 md:p-6 overflow-hidden">
+          <CardContent className="flex-grow flex flex-col p-0 overflow-hidden">
             <CartContents
               cart={cart}
               notes={notes}
               totalPrice={totalPrice}
               isSubmitting={isSubmitting}
+              addressType={addressType}
+              otherAddress={otherAddress}
               handleUpdateQuantity={handleUpdateQuantity}
               handleCreateOrder={handleCreateOrder}
               setNotes={setNotes}
+              setAddressType={setAddressType}
+              setOtherAddress={setOtherAddress}
               formatCurrency={formatCurrency}
               API_URL={API_URL}
             />
@@ -517,8 +626,8 @@ export default function OrderProdukPage() {
         </Card>
       </div>
 
-      {/* Keranjang Mobile - Floating Button + Sheet (DIPERBAIKI) */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-2xl p-3">
+      {/* Mobile Floating Button + Sheet */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 shadow-2xl p-3 z-50">
         <Sheet>
           <SheetTrigger asChild>
             <Button className="w-full py-3 text-sm font-semibold">
@@ -536,20 +645,24 @@ export default function OrderProdukPage() {
           </SheetTrigger>
           <SheetContent
             side="bottom"
-            className="md:hidden rounded-t-3xl flex flex-col max-h-[80vh]"
+            className="md:hidden rounded-t-3xl flex flex-col max-h-[90vh] p-0"
           >
-            <SheetHeader className="flex-shrink-0 mb-4 px-4">
+            <SheetHeader className="flex-shrink-0 p-4 border-b">
               <SheetTitle className="text-xl">Keranjang Belanja</SheetTitle>
             </SheetHeader>
-            <div className="flex-grow overflow-y-auto">
+            <div className="flex-grow overflow-hidden flex flex-col">
               <CartContents
                 cart={cart}
                 notes={notes}
                 totalPrice={totalPrice}
                 isSubmitting={isSubmitting}
+                addressType={addressType}
+                otherAddress={otherAddress}
                 handleUpdateQuantity={handleUpdateQuantity}
                 handleCreateOrder={handleCreateOrder}
                 setNotes={setNotes}
+                setAddressType={setAddressType}
+                setOtherAddress={setOtherAddress}
                 formatCurrency={formatCurrency}
                 API_URL={API_URL}
               />

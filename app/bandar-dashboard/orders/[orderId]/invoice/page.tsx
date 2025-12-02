@@ -18,6 +18,7 @@ type OrderItem = {
   price_at_order: number;
 };
 
+// Update Tipe Data untuk menampung alamat custom
 type ApiOrderItem = {
   produk_id: number;
   nama_produk: string;
@@ -34,12 +35,22 @@ type OrderData = {
     payment_method: string;
     company_name: string;
     company_address: string;
+
+    // Data Bandar (Pemesan) - Billing
     bandar_name: string;
     bandar_email: string;
     bandar_phone: string;
-    bandar_full_address: string;
-    subtotal: number;
+    bandar_full_address: string; // Alamat Utama (Billing)
+
+    // Data Pengiriman dari DB
     shipping_details: string;
+    shipping_option?: string; // ✅ Tambahan: Sesuai Database
+    shipping_address?: string; // ✅ Tambahan: Sesuai Database
+
+    // Field untuk Display di UI
+    destination_address: string;
+
+    subtotal: number;
     shipping_cost: number;
     total_price: number;
   };
@@ -78,11 +89,8 @@ export default function InvoicePage() {
   const [error, setError] = useState<string | null>(null);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
-
-  // ✅ FIX 1: Gunakan satu ref saja (hapus componentRef)
   const printRef = useRef<HTMLDivElement>(null);
 
-  // ✅ FIX 2: Tambahkan delay sebelum print
   const handlePrint = useReactToPrint({
     contentRef: printRef,
     documentTitle: `Invoice-${orderId}`,
@@ -90,10 +98,8 @@ export default function InvoicePage() {
       if (!printRef.current) {
         throw new Error("Ref tidak ter-attach ke element!");
       }
-      console.log("Siap print, konten:", printRef.current);
     },
     onAfterPrint: () => {
-      console.log("Print selesai");
       toast.success("Print berhasil!");
     },
     onPrintError: (error) => {
@@ -127,6 +133,17 @@ export default function InvoicePage() {
           throw new Error("Format data API tidak lengkap untuk invoice.");
         }
 
+        // --- [PERBAIKAN UTAMA DI SINI] ---
+        // Gunakan nama kolom sesuai database: shipping_option & shipping_address
+
+        const isOtherAddress = data.order.shipping_option === "other";
+        const customAddress = data.order.shipping_address;
+
+        const finalShippingAddress =
+          isOtherAddress && customAddress
+            ? customAddress
+            : data.order.bandar_full_address;
+
         // Transformasi data API ke format OrderData
         const transformedData: OrderData = {
           order: {
@@ -151,6 +168,14 @@ export default function InvoicePage() {
             shipping_details:
               data.order.shipping_details ||
               "Akan dibayar ketika barang sampai",
+
+            // ✅ Simpan data mentah DB (opsional tapi berguna)
+            shipping_option: data.order.shipping_option,
+            shipping_address: data.order.shipping_address,
+
+            // ✅ FIELD Display UI: Menggunakan hasil logika di atas
+            destination_address: finalShippingAddress,
+
             shipping_cost: parseFloat(data.order.shipping_cost) || 0,
             total_price: parseFloat(data.order.total_price),
           },
@@ -177,8 +202,6 @@ export default function InvoicePage() {
     fetchInvoiceData();
   }, [orderId, API_URL]);
 
-  // --- Tampilan Loading, Error, dan Data ---
-
   if (isLoading) {
     return (
       <div className="flex h-[80vh] w-full items-center justify-center">
@@ -191,9 +214,6 @@ export default function InvoicePage() {
     return (
       <div className="flex h-[80vh] w-full flex-col items-center justify-center text-center">
         <h2 className="text-xl font-semibold text-destructive">{error}</h2>
-        <p className="text-muted-foreground">
-          Pastikan API Anda sudah mengembalikan data invoice.
-        </p>
         <Button asChild variant="outline" className="mt-4">
           <Link href={`/bandar-dashboard/orders/${orderId}`}>
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -205,19 +225,13 @@ export default function InvoicePage() {
   }
 
   if (!invoiceData) {
-    return (
-      <div className="flex h-[80vh] w-full items-center justify-center">
-        <p>Data invoice tidak ditemukan.</p>
-      </div>
-    );
+    return null;
   }
 
   const { order, items } = invoiceData;
 
-  // --- Render Halaman Invoice ---
   return (
     <div className="p-4 md:p-8 bg-gray-100 min-h-screen">
-      {/* Tombol Aksi di Atas */}
       <div className="max-w-4xl mx-auto mb-4 flex justify-between gap-2 print:hidden">
         <Button asChild variant="outline" size="sm">
           <Link href={`/bandar-dashboard/orders/${orderId}`}>
@@ -228,7 +242,6 @@ export default function InvoicePage() {
         <Button
           size="sm"
           onClick={() => {
-            // ✅ FIX 3: Tambah delay sedikit sebelum print
             setTimeout(() => handlePrint(), 300);
           }}
         >
@@ -237,7 +250,6 @@ export default function InvoicePage() {
         </Button>
       </div>
 
-      {/* ✅ FIX 4: Konten Invoice - PENTING harus visible saat render */}
       <div
         ref={printRef}
         className="max-w-4xl mx-auto p-8 md:p-12 bg-white rounded-lg shadow-lg text-sm"
@@ -268,7 +280,7 @@ export default function InvoicePage() {
 
         {/* Info Alamat dan Detail */}
         <section className="grid grid-cols-3 gap-6 mb-10">
-          {/* Billing Address */}
+          {/* Billing Address (Tetap Alamat Profil/Bandar) */}
           <div className="col-span-1">
             <h3 className="font-bold text-gray-800 mb-2 border-b pb-1">
               Billing Address:
@@ -285,18 +297,20 @@ export default function InvoicePage() {
             </div>
           </div>
 
-          {/* Shipping Address */}
+          {/* Shipping Address (Dinamis: Bisa Utama atau Lain) */}
           <div className="col-span-1">
             <h3 className="font-bold text-gray-800 mb-2 border-b pb-1">
               Shipping Address:
             </h3>
             <div className="text-xs text-gray-600 space-y-0.5">
               <p className="font-semibold text-black">{order.bandar_name}</p>
-              <p className="whitespace-pre-line">{order.bandar_full_address}</p>
+              {/* ✅ Gunakan destination_address yang sudah dihitung */}
+              <p className="whitespace-pre-line bg-yellow-50 p-1 -ml-1 rounded">
+                {order.destination_address}
+              </p>
             </div>
           </div>
 
-          {/* Info Invoice */}
           <div className="col-span-1 text-right">
             <div className="grid grid-cols-2 text-xs">
               <span className="font-bold text-gray-800">Invoice Date:</span>
@@ -307,9 +321,6 @@ export default function InvoicePage() {
 
               <span className="font-bold text-gray-800">Order No.:</span>
               <span>{order.order_id}</span>
-
-              <span className="font-bold text-gray-800">Order Date:</span>
-              <span>{formatDate(order.created_at)}</span>
             </div>
           </div>
         </section>
@@ -359,13 +370,11 @@ export default function InvoicePage() {
 
         {/* Total dan Footer */}
         <section className="flex justify-between items-start">
-          {/* Metode Pembayaran */}
           <div className="text-xs">
             <h4 className="font-bold text-gray-800 mb-1">Payment method:</h4>
             <p className="text-gray-600">{order.payment_method}</p>
           </div>
 
-          {/* Kalkulasi Total */}
           <div className="w-1/3 space-y-2 text-sm">
             <div className="flex justify-between text-xs">
               <span className="text-gray-600">Subtotal</span>
