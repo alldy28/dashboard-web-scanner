@@ -23,8 +23,6 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-// ❌ HAPUS IMPORT INI (Kita pakai HTML biasa saja)
-// import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import {
   Loader2,
   Search,
@@ -33,7 +31,7 @@ import {
   Minus,
   Store,
   MapPin,
-  CheckCircle2, // Icon untuk indikator pilihan
+  CheckCircle2,
 } from "lucide-react";
 import Image from "next/image";
 import { toast } from "sonner";
@@ -52,6 +50,7 @@ type CartItem = {
   produk_id: number;
   quantity: number;
   name: string;
+  gramasi: string; // ✅ 1. Menambahkan field gramasi di sini
   price: number;
   image: string | null;
 };
@@ -119,8 +118,14 @@ const CartContents: React.FC<CartContentsProps> = ({
             />
             <div className="flex-grow flex flex-col sm:flex-row justify-between items-start sm:items-center">
               <div className="mb-2 sm:mb-0">
-                <p className="text-sm font-medium leading-tight">{item.name}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
+                {/* ✅ 3. Menampilkan Gramasi di sebelah Nama Produk */}
+                <p className="text-sm font-medium leading-tight">
+                  {item.name}
+                  <span className="ml-1.5 text-xs font-normal text-muted-foreground bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
+                    {item.gramasi}
+                  </span>
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {formatCurrency(item.price)}
                 </p>
               </div>
@@ -367,6 +372,7 @@ export default function OrderProdukPage() {
           produk_id: product.id_produk,
           quantity: 1,
           name: product.nama_produk,
+          gramasi: product.gramasi_produk, // ✅ 2. Simpan gramasi saat add to cart
           price: parseFloat(product.harga_bandar) || 0,
           image: product.upload_gambar,
         },
@@ -436,7 +442,10 @@ export default function OrderProdukPage() {
       if (!res.ok) throw new Error(data.error || "Gagal membuat pesanan.");
 
       if (data.status === "pre-order-required") {
-        setPoDetails({ message: data.message, totalPrice: data.totalPrice });
+        setPoDetails({
+          message: data.message,
+          totalPrice: data.totalPrice,
+        });
         setPoModalOpen(true);
       } else if (data.status === "payment-pending") {
         toast.success(
