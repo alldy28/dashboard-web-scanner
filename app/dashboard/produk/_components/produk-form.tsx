@@ -53,6 +53,9 @@ const seriesOptions = [
   "Edisi Khusus",
   "Silver Reguler",
   "Silver Custom",
+  "MiniGold",
+  "MaxiGold",
+  "MiniGold Special"
 ];
 
 export default function ProdukForm({

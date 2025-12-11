@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import TransactionStatus from "../transactions/[id]/components/TransactionStatus";
-import { Loader2, Search, PackageOpen, Download } from "lucide-react"; // [TAMBAHAN] Impor Download icon
+import { Loader2, Search, PackageOpen, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   Card,
@@ -29,7 +29,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import Image from "next/image";
-import * as XLSX from "xlsx"; // [TAMBAHAN] Impor XLSX
+import * as ExcelJS from "exceljs"; // [DIUBAH] Menggunakan exceljs
+import { saveAs } from "file-saver"; // Pastikan install: npm install file-saver @types/file-saver
 
 // Tipe data spesifik untuk setiap sumber API
 type ConsumerTransaction = {
@@ -40,7 +41,7 @@ type ConsumerTransaction = {
     | "pending"
     | "approved"
     | "rejected"
-    | "processing" 
+    | "processing"
     | "in_transit"
     | "ready_for_pickup"
     | "completed"
@@ -55,7 +56,7 @@ type BandarOrder = {
     | "pending"
     | "approved"
     | "rejected"
-    | "processing" 
+    | "processing"
     | "in_transit"
     | "completed"
     | "pre-order";
@@ -72,7 +73,7 @@ type DisplayTransaction = {
     | "pending"
     | "approved"
     | "rejected"
-    | "processing" 
+    | "processing"
     | "in_transit"
     | "ready_for_pickup"
     | "completed"
@@ -138,7 +139,8 @@ export default function TransactionsProdukPage() {
         throw new Error("Gagal mengambil data transaksi atau pesanan.");
       }
 
-      const consumerTransactions: ConsumerTransaction[] = await consumerRes.json();
+      const consumerTransactions: ConsumerTransaction[] =
+        await consumerRes.json();
       const bandarOrders: BandarOrder[] = await bandarRes.json();
 
       const formattedConsumerTx: DisplayTransaction[] =
@@ -188,64 +190,67 @@ export default function TransactionsProdukPage() {
   const fetchAllPendingItems = async () => {
     setIsPendingLoading(true);
     const token = localStorage.getItem("admin_access_token");
-    
+
     try {
       const res = await fetch(`${API_URL}/api/admin/orders`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      
+
       if (!res.ok) throw new Error("Gagal mengambil data pendingan.");
-      
+
       const orders: BandarOrder[] = await res.json();
-      
+
       // Filter order yang statusnya masih aktif
-      const activeOrders = orders.filter(o => 
-        o.status === 'approved' || o.status === 'processing' || o.status === 'in_transit'
+      const activeOrders = orders.filter(
+        (o) =>
+          o.status === "approved" ||
+          o.status === "processing" ||
+          o.status === "in_transit"
       );
 
       // Gunakan Map untuk menggabungkan item berdasarkan produk_id
       const aggregatedMap = new Map<number, AggregatedPendingItem>();
 
-      await Promise.all(activeOrders.map(async (order) => {
-         const detailRes = await fetch(`${API_URL}/api/admin/orders/${order.order_id}`, {
-            headers: { Authorization: `Bearer ${token}` },
-         });
-         if(detailRes.ok) {
+      await Promise.all(
+        activeOrders.map(async (order) => {
+          const detailRes = await fetch(
+            `${API_URL}/api/admin/orders/${order.order_id}`,
+            {
+              headers: { Authorization: `Bearer ${token}` },
+            }
+          );
+          if (detailRes.ok) {
             const detailData = await detailRes.json();
             detailData.items.forEach((item: DetailItem) => {
-               const pendingQty = item.quantity - item.quantity_shipped;
-               
-               if(pendingQty > 0) {
-                 // Cek apakah produk sudah ada di Map
-                 const existingItem = aggregatedMap.get(item.produk_id);
-                 
-                 if (existingItem) {
-                   // Jika sudah ada, tambahkan jumlahnya
-                   existingItem.total_pending_qty += pendingQty;
-                 } else {
-                   // Jika belum ada, buat entry baru
-                   aggregatedMap.set(item.produk_id, {
-                      produk_id: item.produk_id,
-                      nama_produk: item.nama_produk,
-                      series_produk: item.series_produk,
-                      gramasi_produk: item.gramasi_produk,
-                      upload_gambar: item.upload_gambar,
-                      total_pending_qty: pendingQty
-                   });
-                 }
-               }
-            });
-         }
-      }));
+              const pendingQty = item.quantity - item.quantity_shipped;
 
-      // Ubah Map kembali menjadi Array untuk ditampilkan
-      const sortedItems = Array.from(aggregatedMap.values()).sort((a, b) => 
+              if (pendingQty > 0) {
+                const existingItem = aggregatedMap.get(item.produk_id);
+
+                if (existingItem) {
+                  existingItem.total_pending_qty += pendingQty;
+                } else {
+                  aggregatedMap.set(item.produk_id, {
+                    produk_id: item.produk_id,
+                    nama_produk: item.nama_produk,
+                    series_produk: item.series_produk,
+                    gramasi_produk: item.gramasi_produk,
+                    upload_gambar: item.upload_gambar,
+                    total_pending_qty: pendingQty,
+                  });
+                }
+              }
+            });
+          }
+        })
+      );
+
+      const sortedItems = Array.from(aggregatedMap.values()).sort((a, b) =>
         a.nama_produk.localeCompare(b.nama_produk)
       );
 
       setPendingItems(sortedItems);
       setIsPendingModalOpen(true);
-
     } catch (err) {
       console.error("Gagal mengambil item pending:", err);
     } finally {
@@ -253,37 +258,43 @@ export default function TransactionsProdukPage() {
     }
   };
 
-  // [TAMBAHAN] Fungsi untuk mengunduh data pendingan ke Excel
-  const handleDownloadExcel = () => {
-    // 1. Siapkan data untuk Excel
-    const dataToExport = pendingItems.map((item) => ({
-      "ID Produk": item.produk_id,
-      "Nama Produk": item.nama_produk,
-      "Series": item.series_produk,
-      "Gramasi": item.gramasi_produk,
-      "Jumlah Pending (Pcs)": item.total_pending_qty,
-    }));
+  // [DIUBAH] Fungsi Download Excel menggunakan ExcelJS
+  const handleDownloadExcel = async () => {
+    // 1. Buat Workbook dan Worksheet baru
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet("Rekap Pendingan");
 
-    // 2. Buat Worksheet
-    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
-
-    // 3. Atur lebar kolom agar rapi (opsional)
-    const columnWidths = [
-      { wch: 10 }, // ID
-      { wch: 30 }, // Nama
-      { wch: 20 }, // Series
-      { wch: 15 }, // Gramasi
-      { wch: 20 }, // Qty
+    // 2. Definisikan Kolom
+    worksheet.columns = [
+      { header: "ID Produk", key: "id", width: 10 },
+      { header: "Nama Produk", key: "nama", width: 30 },
+      { header: "Series", key: "series", width: 20 },
+      { header: "Gramasi", key: "gramasi", width: 15 },
+      { header: "Jumlah Pending (Pcs)", key: "qty", width: 20 },
     ];
-    worksheet["!cols"] = columnWidths;
 
-    // 4. Buat Workbook
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Rekap Pendingan");
+    // 3. Tambahkan Data
+    pendingItems.forEach((item) => {
+      worksheet.addRow({
+        id: item.produk_id,
+        nama: item.nama_produk,
+        series: item.series_produk,
+        gramasi: item.gramasi_produk,
+        qty: item.total_pending_qty,
+      });
+    });
 
-    // 5. Simpan File
-    const dateStr = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
-    XLSX.writeFile(workbook, `Rekap_Pendingan_Stok_${dateStr}.xlsx`);
+    // 4. Styling Sederhana (Header Bold)
+    worksheet.getRow(1).font = { bold: true };
+
+    // 5. Generate Buffer dan Download
+    const buffer = await workbook.xlsx.writeBuffer();
+    const blob = new Blob([buffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    
+    const dateStr = new Date().toISOString().split("T")[0];
+    saveAs(blob, `Rekap_Pendingan_Stok_${dateStr}.xlsx`);
   };
 
   const filteredTransactions = combinedTransactions.filter(
@@ -294,43 +305,44 @@ export default function TransactionsProdukPage() {
 
   return (
     <div className="p-6 space-y-6">
-      
       <div className="flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-         <div>
-            <h1 className="text-2xl font-bold tracking-tight">Manajemen Transaksi</h1>
-            <p className="text-muted-foreground">
-              Monitor semua transaksi dari konsumen dan pesanan stok dari bandar.
-            </p>
-         </div>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Manajemen Transaksi
+          </h1>
+          <p className="text-muted-foreground">
+            Monitor semua transaksi dari konsumen dan pesanan stok dari bandar.
+          </p>
+        </div>
 
-         <Card 
-            className="w-full md:w-auto min-w-[200px] cursor-pointer hover:bg-accent/50 transition-colors"
-            onClick={fetchAllPendingItems}
-         >
-            <CardContent className="p-4 flex flex-col items-center justify-center text-center">
-               {isPendingLoading ? (
-                  <Loader2 className="h-6 w-6 animate-spin text-primary" />
-               ) : (
-                  <>
-                     <p className="text-sm font-medium text-muted-foreground mb-1">Total Pendingan</p>
-                     <div className="flex items-center gap-2">
-                        <PackageOpen className="h-5 w-5 text-amber-600" />
-                        <span className="text-2xl font-bold text-amber-600">
-                           Cek Detail
-                        </span>
-                     </div>
-                  </>
-               )}
-            </CardContent>
-         </Card>
+        <Card
+          className="w-full md:w-auto min-w-[200px] cursor-pointer hover:bg-accent/50 transition-colors"
+          onClick={fetchAllPendingItems}
+        >
+          <CardContent className="p-4 flex flex-col items-center justify-center text-center">
+            {isPendingLoading ? (
+              <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            ) : (
+              <>
+                <p className="text-sm font-medium text-muted-foreground mb-1">
+                  Total Pendingan
+                </p>
+                <div className="flex items-center gap-2">
+                  <PackageOpen className="h-5 w-5 text-amber-600" />
+                  <span className="text-2xl font-bold text-amber-600">
+                    Cek Detail
+                  </span>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Daftar Transaksi</CardTitle>
-          <CardDescription>
-             Semua riwayat pesanan masuk.
-          </CardDescription>
+          <CardDescription>Semua riwayat pesanan masuk.</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="relative mb-4">
@@ -412,61 +424,82 @@ export default function TransactionsProdukPage() {
       </Card>
 
       <Dialog open={isPendingModalOpen} onOpenChange={setIsPendingModalOpen}>
-         <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
-            <DialogHeader className="flex flex-row items-center justify-between pr-8">
-               <div>
-                  <DialogTitle>Rekapitulasi Barang Pending</DialogTitle>
-                  <DialogDescription>
-                     Total keseluruhan item yang perlu disiapkan.
-                  </DialogDescription>
-               </div>
-               {/* [TAMBAHAN] Tombol Download Excel */}
-               {pendingItems.length > 0 && (
-                 <Button size="sm" variant="outline" onClick={handleDownloadExcel} className="gap-2">
-                    <Download className="h-4 w-4" />
-                    Excel
-                 </Button>
-               )}
-            </DialogHeader>
-            
-            <div className="flex-grow overflow-y-auto pr-2">
-               {pendingItems.length > 0 ? (
-                  <div className="space-y-4">
-                     <div className="bg-amber-50 p-3 rounded-md border border-amber-200 text-amber-800 font-medium text-center">
-                        Total {pendingItems.reduce((sum, item) => sum + item.total_pending_qty, 0)} Pcs Barang Harus Dikirim
-                     </div>
-
-                     {pendingItems.map((item) => (
-                        <div key={item.produk_id} className="flex items-center gap-4 p-4 border rounded-lg bg-white shadow-sm">
-                           <div className="relative h-16 w-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
-                              <Image 
-                                 src={item.upload_gambar ? `${API_URL}/${item.upload_gambar}` : `https://placehold.co/64x64`}
-                                 alt={item.nama_produk}
-                                 fill
-                                 className="object-cover"
-                              />
-                           </div>
-                           <div className="flex-grow">
-                              <h4 className="font-bold text-base">{item.nama_produk}</h4>
-                              <p className="text-sm text-muted-foreground">{item.series_produk} - {item.gramasi_produk}</p>
-                           </div>
-                           <div className="text-right min-w-[100px]">
-                              <span className="block text-2xl font-bold text-red-600">
-                                 {item.total_pending_qty}
-                              </span>
-                              <span className="text-xs text-muted-foreground uppercase font-semibold">Pcs Pending</span>
-                           </div>
-                        </div>
-                     ))}
-                  </div>
-               ) : (
-                  <div className="py-10 text-center text-muted-foreground">
-                     <PackageOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                     <p>Semua pesanan sudah terpenuhi.</p>
-                  </div>
-               )}
+        <DialogContent className="max-w-3xl max-h-[80vh] flex flex-col">
+          <DialogHeader className="flex flex-row items-center justify-between pr-8">
+            <div>
+              <DialogTitle>Rekapitulasi Barang Pending</DialogTitle>
+              <DialogDescription>
+                Total keseluruhan item yang perlu disiapkan.
+              </DialogDescription>
             </div>
-         </DialogContent>
+            {/* Tombol Download Excel */}
+            {pendingItems.length > 0 && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDownloadExcel}
+                className="gap-2"
+              >
+                <Download className="h-4 w-4" />
+                Excel
+              </Button>
+            )}
+          </DialogHeader>
+
+          <div className="flex-grow overflow-y-auto pr-2">
+            {pendingItems.length > 0 ? (
+              <div className="space-y-4">
+                <div className="bg-amber-50 p-3 rounded-md border border-amber-200 text-amber-800 font-medium text-center">
+                  Total{" "}
+                  {pendingItems.reduce(
+                    (sum, item) => sum + item.total_pending_qty,
+                    0
+                  )}{" "}
+                  Pcs Barang Harus Dikirim
+                </div>
+
+                {pendingItems.map((item) => (
+                  <div
+                    key={item.produk_id}
+                    className="flex items-center gap-4 p-4 border rounded-lg bg-white shadow-sm"
+                  >
+                    <div className="relative h-16 w-16 flex-shrink-0 bg-gray-100 rounded-md overflow-hidden">
+                      <Image
+                        src={
+                          item.upload_gambar
+                            ? `${API_URL}/${item.upload_gambar}`
+                            : `https://placehold.co/64x64`
+                        }
+                        alt={item.nama_produk}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div className="flex-grow">
+                      <h4 className="font-bold text-base">{item.nama_produk}</h4>
+                      <p className="text-sm text-muted-foreground">
+                        {item.series_produk} - {item.gramasi_produk}
+                      </p>
+                    </div>
+                    <div className="text-right min-w-[100px]">
+                      <span className="block text-2xl font-bold text-red-600">
+                        {item.total_pending_qty}
+                      </span>
+                      <span className="text-xs text-muted-foreground uppercase font-semibold">
+                        Pcs Pending
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="py-10 text-center text-muted-foreground">
+                <PackageOpen className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p>Semua pesanan sudah terpenuhi.</p>
+              </div>
+            )}
+          </div>
+        </DialogContent>
       </Dialog>
     </div>
   );
