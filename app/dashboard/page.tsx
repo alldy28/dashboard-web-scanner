@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { ArrowUpRight, Users, UserCheck, Clock, Shield } from "lucide-react";
 import { Loader2 } from "lucide-react";
 
-// Tipe data untuk menampung hasil summary
+// Tipe data hasil summary
 type AdminSummary = {
   pendingTransactions: number;
   totalUsers: number;
