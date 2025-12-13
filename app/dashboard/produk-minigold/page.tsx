@@ -49,7 +49,7 @@ type CsvRow = {
   "Harga Bandar": string;
 };
 
-// Series yang diizinkan untuk halaman ini
+// Konstanta Series yang diizinkan (DI LUAR komponen)
 const ALLOWED_SERIES = ["MiniGold", "MaxiGold", "MiniGold Special"];
 
 export default function ProdukMiniGoldPage() {
@@ -60,15 +60,12 @@ export default function ProdukMiniGoldPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-
   // Fetch Data dari API
   const fetchProducts = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Ambil data produk (pastikan API mendukung pagination/limit besar atau filtering)
-      const res = await apiClient("/api/admin/produk?limit=1000"); // Sesuaikan limit jika perlu
+      const res = await apiClient("/api/admin/produk?limit=1000"); // Sesuaikan limit
       
-      // Filter hanya series tertentu
       const miniGoldProducts = res.data.filter((p: Product) =>
         ALLOWED_SERIES.includes(p.series_produk)
       );
@@ -115,7 +112,6 @@ export default function ProdukMiniGoldPage() {
       return;
     }
 
-    // Menggunakan ExcelJS untuk membuat file (bisa disimpan sebagai CSV atau XLSX)
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("Data Harga");
 
@@ -158,25 +154,22 @@ export default function ProdukMiniGoldPage() {
     fileInputRef.current?.click();
   };
 
-  // Parser CSV Sederhana (Agar tidak perlu install library tambahan lagi)
+  // Parser CSV Sederhana
   const parseCSV = (text: string): CsvRow[] => {
     const lines = text.split("\n").filter((line) => line.trim() !== "");
     const headers = lines[0].split(",").map((h) => h.trim().replace(/"/g, ""));
     
-    const result = [];
+    const result: CsvRow[] = [];
     
     for (let i = 1; i < lines.length; i++) {
-      // Regex untuk memisahkan koma tapi mengabaikan koma di dalam tanda kutip
       const currentLine = lines[i].match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
       
       if (!currentLine) continue;
 
       const obj: Record<string, string> = {};
       headers.forEach((header, index) => {
-        // Bersihkan tanda kutip jika ada
         const val = currentLine[index] ? currentLine[index].replace(/^"|"$/g, '').trim() : "";
         
-        // Mapping nama header CSV ke key object yang kita inginkan
         if (header.includes("ID")) obj["ID"] = val;
         else if (header.includes("Nama")) obj["Nama"] = val;
         else if (header.includes("Series")) obj["Series"] = val;
@@ -186,9 +179,9 @@ export default function ProdukMiniGoldPage() {
         else if (header.includes("Harga Bandar")) obj["Harga Bandar"] = val;
       });
       
-      if (obj.ID) result.push(obj);
+      if (obj.ID) result.push(obj as unknown as CsvRow);
     }
-    return result as CsvRow[];
+    return result;
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -217,8 +210,6 @@ export default function ProdukMiniGoldPage() {
       }
     };
     reader.readAsText(file);
-
-    // Reset input
     event.target.value = "";
   };
 
@@ -226,21 +217,26 @@ export default function ProdukMiniGoldPage() {
     let successCount = 0;
     let failCount = 0;
 
-    // Proses update secara paralel
     const updates = data.map(async (row) => {
       if (!row.ID) return;
 
       try {
-        // Panggil endpoint khusus update detail yang sudah kita buat sebelumnya
-        // PUT /api/admin/produk/:id/details
+        // [PERBAIKAN UTAMA]
+        // Kita hanya mengirim data HARGA.
+        // Data Nama, Series, dan Gramasi TIDAK dikirim.
+        // Karena service backend kita sudah dinamis, maka field yang tidak dikirim
+        // tidak akan di-update di database. Ini mencegah data teks berubah/rusak.
+        
         await apiClient(`/api/admin/produk/${row.ID}/details`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-                nama_produk: row.Nama,
-                series_produk: row.Series,
-                gramasi_produk: row.Gramasi,
-                // Pastikan format angka bersih
+                // HAPUS atau KOMENTARI baris ini agar nama/detail produk AMAN
+                // nama_produk: row.Nama, 
+                // series_produk: row.Series,
+                // gramasi_produk: row.Gramasi,
+                
+                // HANYA UPDATE HARGA
                 harga_produk: String(row["Harga Jual"]).replace(/[^0-9.]/g, ''),
                 harga_buyback: String(row["Harga Buyback"]).replace(/[^0-9.]/g, ''),
                 harga_bandar: String(row["Harga Bandar"]).replace(/[^0-9.]/g, ''),
@@ -258,16 +254,16 @@ export default function ProdukMiniGoldPage() {
 
     setIsUploading(false);
     toast.success(`Update Selesai. Sukses: ${successCount}, Gagal: ${failCount}`);
-    fetchProducts(); // Refresh data tabel
+    fetchProducts();
   };
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Manajemen Harga MiniGold</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Produk MiniGold</h1>
           <p className="text-muted-foreground">
-            Update harga massal khusus untuk series MiniGold, MaxiGold, dan Special.
+            Kelola harga khusus untuk series MiniGold, MaxiGold, dan Special.
           </p>
         </div>
         <div className="flex gap-2">
@@ -283,7 +279,6 @@ export default function ProdukMiniGoldPage() {
             )}
             Upload CSV & Update
           </Button>
-          {/* Hidden File Input */}
           <input
             type="file"
             ref={fileInputRef}
@@ -296,7 +291,7 @@ export default function ProdukMiniGoldPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Daftar Produk</CardTitle>
+          <CardTitle>Daftar Harga & Stok</CardTitle>
           <CardDescription>
             Menampilkan {filteredProducts.length} produk.
           </CardDescription>
@@ -346,9 +341,9 @@ export default function ProdukMiniGoldPage() {
                       </TableCell>
                       <TableCell>{product.gramasi_produk}</TableCell>
                       <TableCell>
-                        <span className={product.stok_produk === 0 ? "text-red-500 font-bold" : ""}>
+                         <span className={product.stok_produk === 0 ? "text-red-500 font-bold" : ""}>
                             {product.stok_produk}
-                        </span>
+                         </span>
                       </TableCell>
                       <TableCell className="text-right text-green-600 font-semibold">
                         {formatCurrency(product.harga_produk)}
@@ -364,7 +359,7 @@ export default function ProdukMiniGoldPage() {
                 ) : (
                   <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center">
-                      Tidak ada produk ditemukan untuk kategori ini.
+                      Tidak ada produk ditemukan.
                     </TableCell>
                   </TableRow>
                 )}
