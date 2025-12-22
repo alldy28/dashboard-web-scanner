@@ -260,6 +260,7 @@ export function ProdukClient() {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Id</TableHead>
                 <TableHead className="w-[80px]">Gambar</TableHead>
                 <TableHead>Nama Produk</TableHead>
                 <TableHead>Stok</TableHead>
@@ -282,6 +283,15 @@ export function ProdukClient() {
                     key={product.id_produk}
                     className={!product.is_active ? "bg-muted/50" : ""}
                   >
+                    <TableCell className="font-medium">
+                      <div
+                        className={
+                          !product.is_active ? "text-muted-foreground" : ""
+                        }
+                      >
+                        {product.id_produk}
+                      </div>
+                    </TableCell>
                     <TableCell>
                       <div className="relative h-12 w-12 rounded-md overflow-hidden bg-gray-100">
                         <Image
@@ -308,7 +318,8 @@ export function ProdukClient() {
                         {product.nama_produk}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {product.series_produk} - {product.gramasi_produk}
+                        {product.id_produk} - {product.series_produk} -{" "}
+                        {product.gramasi_produk}
                       </div>
                     </TableCell>
                     <TableCell>
