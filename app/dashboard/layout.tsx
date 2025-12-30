@@ -11,6 +11,8 @@ import {
   History,
   List,
   Newspaper,
+  Boxes,
+  ImageIcon,
   DollarSign,
   LogOut,
   Loader2,
@@ -28,7 +30,8 @@ const navItems: NavItem[] = [
   { href: "/dashboard/histori-harga", label: "Histori Harga", icon: History },
   { href: "/dashboard/histori", label: "Histori Scanner", icon: History },
   { href: "/dashboard/berita", label: "Berita", icon: Newspaper },
-  { href: "/dashboard/banner", label: "Banner", icon: Newspaper },
+  { href: "/dashboard/banner", label: "Banner", icon: ImageIcon },
+  { href: "/dashboard/konfirmasi-produk", label: "Proses Barang", icon: Boxes },
 ];
 
 const NavLink = ({ href, label, icon: Icon }: NavItem) => {

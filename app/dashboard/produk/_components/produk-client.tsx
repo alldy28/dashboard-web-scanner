@@ -318,7 +318,7 @@ export function ProdukClient() {
                         {product.nama_produk}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {product.id_produk} - {product.series_produk} -{" "}
+                        {product.series_produk} -{" "}
                         {product.gramasi_produk}
                       </div>
                     </TableCell>
