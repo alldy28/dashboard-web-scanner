@@ -118,7 +118,6 @@ const CartContents: React.FC<CartContentsProps> = ({
             />
             <div className="flex-grow flex flex-col sm:flex-row justify-between items-start sm:items-center">
               <div className="mb-2 sm:mb-0">
-                {/* ✅ 3. Menampilkan Gramasi di sebelah Nama Produk */}
                 <p className="text-sm font-medium leading-tight">
                   {item.name}
                   <span className="ml-1.5 text-xs font-normal text-muted-foreground bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">
@@ -129,22 +128,67 @@ const CartContents: React.FC<CartContentsProps> = ({
                   {formatCurrency(item.price)}
                 </p>
               </div>
+
+              {/* [PERBAIKAN] Bagian Input Quantity */}
               <div className="flex items-center gap-1 flex-shrink-0">
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-8 w-8" // Ukuran tombol sedikit diperbesar agar proporsional dengan input
                   onClick={() =>
                     handleUpdateQuantity(item.produk_id, item.quantity - 1)
                   }
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
-                <span className="w-8 text-center text-sm">{item.quantity}</span>
+
+                {/* Input Manual Qty */}
+                <Input
+                  type="number"
+                  className="w-16 h-8 text-center px-1 py-1" // Lebar pas untuk angka ratusan
+                  value={item.quantity}
+                  min={1}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // Jika kosong, biarkan sementara (atau set ke 1 jika onBlur)
+                    // Jika ada angka, update langsung
+                    const newQty = parseInt(val, 10);
+                    if (!isNaN(newQty) && newQty >= 0) {
+                      handleUpdateQuantity(item.produk_id, newQty);
+                    } else if (val === "") {
+                      // Opsi: biarkan kosong sementara agar user bisa hapus angka
+                      // Tapi state quantity biasanya number, jadi kita tangani di handleUpdateQuantity
+                      // Atau paksa jadi 0/1. Di sini kita biarkan user mengetik.
+                      // Karena handleUpdateQuantity mengharapkan number, kita kirim 0 atau 1 jika kosong,
+                      // tapi lebih baik UX-nya jika input dikontrol ketat atau gunakan onBlur.
+                      // Untuk simplisitas dan keamanan data type, kita kirim 0 jika kosong,
+                      // tapi handleUpdateQuantity akan menghapus item jika 0.
+                      // Jadi kita kirim 1 atau angka minimal valid.
+                      // handleUpdateQuantity(item.produk_id, 1);
+                      // TAPI: user ingin mengetik "20", dia hapus "1" dulu -> jadi "".
+                      // Maka idealnya state quantity bisa string sementara, tapi karena tipe CartItem fix number,
+                      // kita handle dengan: biarkan 0/NaN tidak memicu update atau update jadi 0 (hapus).
+                      // Paling aman: update jadi 0 (hapus) hanya jika user selesai mengetik (onBlur)
+                      // TAPI permintaan user: "langsung memesan".
+                      // Kita akan update langsung jika valid.
+                    }
+                  }}
+                  onBlur={(e) => {
+                    // Saat user selesai mengetik dan pindah fokus
+                    const val = parseInt(e.target.value, 10);
+                    if (isNaN(val) || val <= 0) {
+                      // Jika tidak valid/0, hapus item atau reset ke 1
+                      // handleUpdateQuantity(item.produk_id, 0); // Hapus item
+                      // Atau reset ke 1 jika tidak ingin terhapus otomatis
+                      if (isNaN(val)) handleUpdateQuantity(item.produk_id, 1);
+                    }
+                  }}
+                />
+
                 <Button
                   variant="outline"
                   size="icon"
-                  className="h-6 w-6"
+                  className="h-8 w-8"
                   onClick={() =>
                     handleUpdateQuantity(item.produk_id, item.quantity + 1)
                   }
