@@ -26,6 +26,7 @@ type Kepingan = {
   produk_id: number;
   tgl_produksi: string;
   kode_validasi: string;
+  product_id : number;
 };
 
 interface GenerateQrModalProps {
@@ -232,12 +233,40 @@ export function GenerateQrModal({
     }
   };
 
+  const wrapText = (
+    ctx: CanvasRenderingContext2D, // Tipe bawaan TS untuk Canvas 2D
+    text: string,
+    x: number,
+    y: number,
+    maxWidth: number,
+    lineHeight: number
+  ) => {
+    const words = text.split(" ");
+    let line = "";
+
+    for (let n = 0; n < words.length; n++) {
+      const testLine = line + words[n] + " ";
+      const metrics = ctx.measureText(testLine);
+      const testWidth = metrics.width;
+
+      if (testWidth > maxWidth && n > 0) {
+        ctx.fillText(line, x, y);
+        line = words[n] + " ";
+        y += lineHeight;
+      } else {
+        line = testLine;
+      }
+    }
+    ctx.fillText(line, x, y);
+  };
+
   const handleSaveAndDownload = async () => {
     if (previewKepingan.length === 0) return;
     setIsLoading(true);
     setError(null);
 
     try {
+      // Simpan ke database
       await apiClient("/api/admin/produk/save-kepingan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -245,6 +274,8 @@ export function GenerateQrModal({
       });
 
       const zip = new JSZip();
+
+      // Load Logo (hanya sekali di luar loop untuk performa)
       const logoImg = new window.Image();
       logoImg.crossOrigin = "Anonymous";
       logoImg.src = "/logoSilverium.png";
@@ -253,15 +284,26 @@ export function GenerateQrModal({
         logoImg.onerror = reject;
       });
 
+      // Loop setiap kepingan
       for (const kepingan of previewKepingan) {
         const qrContent = `${WEBSITE_URL}/${kepingan.uuid_random}`;
         const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
         const validationCode = kepingan.kode_validasi;
 
+        // Setup Canvas
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
+        // Tingkatkan sedikit tinggi canvas jika nama produk panjang (opsional, default 200)
+        canvas.width = 370;
+        canvas.height = 200;
+
+        // Background Putih
+        ctx.fillStyle = "white";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // Generate QR Code di canvas terpisah
         const qrCanvas = document.createElement("canvas");
         await QRCode.toCanvas(qrCanvas, qrContent, {
           width: 400,
@@ -269,28 +311,46 @@ export function GenerateQrModal({
           errorCorrectionLevel: "H",
         });
 
-        canvas.width = 370;
-        canvas.height = 200;
-        ctx.fillStyle = "white";
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        // Render QR ke Canvas Utama
         ctx.drawImage(qrCanvas, 10, 10, 180, 180);
 
-        const logoSize = 150;
-        const logoX = 190 + (180 - logoSize) / 2;
+        // Render Logo di tengah QR
+        const logoSize = 150; // Sesuaikan ukuran logo jika perlu
+        const logoX = 190 + (180 - logoSize) / 2; // Hitungan ini sepertinya menempatkan logo di area kanan?
+        // Jika ingin logo di tengah QR (area kiri):
+        // const logoX_QR = 10 + (180 - logoSize) / 2;
+        // Namun saya ikuti logika koordinat kode asli Anda:
         const logoY = -50 + (180 - logoSize) / 2;
         ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
 
+        // Render Text
         ctx.fillStyle = "black";
-        ctx.font = "bold 35px Arial";
-        ctx.fillText(validationCode, 220, 120);
-        ctx.font = "30px monospace";
-        ctx.fillText(uuidSlice, 220, 160);
 
+        // 1. Kode Validasi
+        ctx.font = "bold 35px Arial";
+        ctx.fillText(validationCode, 220, 110);
+
+        // 2. UUID Slice
+        ctx.font = "22px monospace";
+        ctx.fillText("ID:" + uuidSlice, 220, 145);
+
+        // 3. Nama Produk (DENGAN WRAPPING)
+        ctx.font = "bold 12px monospace";
+
+        // Gabungkan nama dan gramasi dengan spasi
+        const fullText = `${namaProduk} ${gramasiProduk}`;
+
+        // Hitung sisa lebar canvas: 370 (lebar total) - 220 (posisi X) = 150px
+        // Kita set maxWidth 140px biar ada margin kanan 10px
+        wrapText(ctx, fullText, 220, 180, 140, 12);
+
+        // Convert ke Blob dan masukkan ke ZIP
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await (await fetch(dataUrl)).blob();
         zip.file(`qrcode_${uuidSlice}_${validationCode}.png`, blob);
       }
 
+      // Generate dan Download ZIP
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
       const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
@@ -299,6 +359,7 @@ export function GenerateQrModal({
       onSuccess();
       onClose();
     } catch (err) {
+      console.error(err);
       setError(
         err instanceof Error ? err.message : "Gagal menyimpan atau mengunduh."
       );
