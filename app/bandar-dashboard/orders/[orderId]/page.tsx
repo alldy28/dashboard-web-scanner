@@ -299,12 +299,28 @@ Mohon segera dicek. Terima kasih.`;
         <div className="mb-4 rounded-lg border bg-background p-4">
           <h4 className="mb-2 flex items-center text-sm font-semibold">
             <Info className="mr-2 h-4 w-4" />
-            Info Rekening Pembayaran
+            Info Rekening Pembayaran pilih salah satu dibawah ini :
           </h4>
+          <br />
           <div className="space-y-1 text-sm text-muted-foreground">
-            <p>
-              Bank BCA: <strong>6790326812</strong> (a/n EDI HERMANTO)
-            </p>
+            <ul>
+              <li>
+                <strong>Bank:</strong> BCA
+              </li>
+              <li>
+                <strong>No. Rekening:</strong> 6790810005 A.N Apriliani Fauziah
+              </li>
+              <br />
+              <li>
+                <strong>No. Rekening:</strong> 2040824629 A.N Sarah Mardhatillah
+              </li>
+              <br />
+              <li>
+                <strong>No. Rekening:</strong> 7001071231 A.N Oktaviani Putri
+              </li>
+            </ul>
+            <p></p>
+            <br />
           </div>
         </div>
 
