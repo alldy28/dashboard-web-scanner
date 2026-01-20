@@ -17,9 +17,11 @@ import {
   FileText,
   Printer,
   Eye,
-  CheckCircle, // Ikon untuk tombol proses
-  Check, // Ikon untuk approve
-  X, // Ikon untuk reject
+  CheckCircle,
+  Check,
+  X,
+  Trash2, // [TAMBAHAN] Ikon Sampah
+  Upload, // [TAMBAHAN] Ikon Upload
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -39,7 +41,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 
-// Tipe Data
+// ... (Tipe Data OrderItem, ShipmentItem, Shipment, OrderDetails TETAP SAMA) ...
 type OrderItem = {
   order_item_id: number;
   produk_id: number;
@@ -72,13 +74,13 @@ type OrderDetails = {
     status: string;
     created_at: string;
     payment_proof_url: string | null;
-    notes: string | null; // Catatan dari bandar
+    notes: string | null;
   };
   items: OrderItem[];
   shipments: Shipment[];
 };
 
-// Komponen Item Pengiriman
+// ... (Komponen ShippableItem TETAP SAMA) ...
 const ShippableItem = ({
   item,
   onSelectionChange,
@@ -86,6 +88,7 @@ const ShippableItem = ({
   item: OrderItem;
   onSelectionChange: (selected: boolean, quantity: number) => void;
 }) => {
+  // ... (kode sama seperti sebelumnya) ...
   const [isSelected, setIsSelected] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const pendingQty = item.quantity - item.quantity_shipped;
@@ -128,7 +131,10 @@ const ShippableItem = ({
         />
       </div>
       <div className="flex-grow">
-        <p className="font-medium text-sm leading-tight">{item.nama_produk}</p>
+        <p className="font-medium text-sm leading-tight">
+          {item.nama_produk} -{" "}
+          <span className="font-bold">{item.gramasi_produk}</span>
+        </p>
         <p className="text-xs text-muted-foreground">
           {item.series_produk} | Pending: {pendingQty} | Stok:{" "}
           {item.stok_produk}
@@ -159,11 +165,16 @@ export default function AdminOrderDetailPage() {
   >(new Map());
   const [proofFile, setProofFile] = useState<File | null>(null);
 
-  // State Loading untuk berbagai aksi
+  // State untuk Admin Upload Bukti Pembayaran (Fitur Baru)
+  const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
+  const [isUploadingPayment, setIsUploadingPayment] = useState(false);
+  const [isDeletingPayment, setIsDeletingPayment] = useState(false);
+
+  // State Loading
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isApproving, setIsApproving] = useState(false); // [BARU]
-  const [isRejecting, setIsRejecting] = useState(false); // [BARU]
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
 
   const API_URL = process.env.NEXT_PUBLIC_API_URL || "";
 
@@ -189,12 +200,13 @@ export default function AdminOrderDetailPage() {
     fetchOrderDetails();
   }, [fetchOrderDetails]);
 
+  // ... (handleSelectionChange, handleApproveOrder, handleRejectOrder, handleProcessOrder TETAP SAMA) ...
   const handleSelectionChange = useCallback(
     (
       order_item_id: number,
       produk_id: number,
       selected: boolean,
-      quantity: number
+      quantity: number,
     ) => {
       setItemsToShip((prev) => {
         const newMap = new Map(prev);
@@ -206,15 +218,13 @@ export default function AdminOrderDetailPage() {
         return newMap;
       });
     },
-    []
+    [],
   );
 
-  // --- [BARU] Handle Approve Pesanan ---
   const handleApproveOrder = async () => {
     if (!orderId) return;
     setIsApproving(true);
     const token = localStorage.getItem("admin_access_token");
-
     try {
       const res = await fetch(
         `${API_URL}/api/admin/orders/${orderId}/approve`,
@@ -224,14 +234,12 @@ export default function AdminOrderDetailPage() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
-
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || "Gagal menyetujui pesanan.");
       }
-
       toast.success("Pembayaran disetujui. Status pesanan: Approved.");
       fetchOrderDetails();
     } catch (err) {
@@ -241,12 +249,10 @@ export default function AdminOrderDetailPage() {
     }
   };
 
-  // --- [BARU] Handle Reject Pesanan ---
   const handleRejectOrder = async () => {
     if (!orderId) return;
     setIsRejecting(true);
     const token = localStorage.getItem("admin_access_token");
-
     try {
       const res = await fetch(`${API_URL}/api/admin/orders/${orderId}/reject`, {
         method: "PUT",
@@ -255,12 +261,10 @@ export default function AdminOrderDetailPage() {
           "Content-Type": "application/json",
         },
       });
-
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || "Gagal menolak pesanan.");
       }
-
       toast.success("Pesanan ditolak.");
       fetchOrderDetails();
     } catch (err) {
@@ -270,12 +274,10 @@ export default function AdminOrderDetailPage() {
     }
   };
 
-  // --- Handle Proses Pesanan (Approve -> Processing) ---
   const handleProcessOrder = async () => {
     if (!orderId) return;
     setIsProcessing(true);
     const token = localStorage.getItem("admin_access_token");
-
     try {
       const res = await fetch(
         `${API_URL}/api/admin/orders/${orderId}/process`,
@@ -286,16 +288,14 @@ export default function AdminOrderDetailPage() {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ status: "processing" }),
-        }
+        },
       );
-
       if (!res.ok) {
         const errData = await res.json();
         throw new Error(errData.error || "Gagal memproses pesanan.");
       }
-
       toast.success(
-        "Status pesanan diubah menjadi 'Diproses'. Silakan kemas barang."
+        "Status pesanan diubah menjadi 'Diproses'. Silakan kemas barang.",
       );
       fetchOrderDetails();
     } catch (err) {
@@ -306,6 +306,7 @@ export default function AdminOrderDetailPage() {
   };
 
   const handleCreateShipment = async () => {
+    // ... (kode handleCreateShipment lama) ...
     if (itemsToShip.size === 0) {
       toast.error("Pilih setidaknya satu item untuk dikirim.");
       return;
@@ -316,7 +317,6 @@ export default function AdminOrderDetailPage() {
     }
     setIsSubmitting(true);
     const token = localStorage.getItem("admin_access_token");
-
     const formData = new FormData();
     const payload = {
       itemsToShip: Array.from(itemsToShip.entries()).map(
@@ -324,12 +324,11 @@ export default function AdminOrderDetailPage() {
           order_item_id,
           produk_id,
           quantity,
-        })
+        }),
       ),
     };
     formData.append("data", JSON.stringify(payload));
     formData.append("proofImage", proofFile);
-
     try {
       const res = await fetch(
         `${API_URL}/api/admin/orders/${orderId}/shipments`,
@@ -337,7 +336,7 @@ export default function AdminOrderDetailPage() {
           method: "POST",
           headers: { Authorization: `Bearer ${token}` },
           body: formData,
-        }
+        },
       );
       if (!res.ok) {
         const errData = await res.json();
@@ -356,13 +355,12 @@ export default function AdminOrderDetailPage() {
   };
 
   const handlePrintLabel = async (shipmentId: number) => {
+    // ... (kode handlePrintLabel lama) ...
     const token = localStorage.getItem("admin_access_token");
     try {
       const res = await fetch(
         `${API_URL}/api/admin/shipments/${shipmentId}/label`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } },
       );
       if (!res.ok) throw new Error("Gagal membuat label.");
       const blob = await res.blob();
@@ -373,11 +371,78 @@ export default function AdminOrderDetailPage() {
     }
   };
 
+  // --- [BARU] Fungsi Hapus Bukti Pembayaran ---
+  const handleDeletePaymentProof = async () => {
+    if (!orderId) return;
+    if (
+      !confirm(
+        "Apakah Anda yakin ingin menghapus bukti pembayaran ini? Status pesanan akan kembali ke 'Menunggu Pembayaran'.",
+      )
+    )
+      return;
+
+    setIsDeletingPayment(true);
+    const token = localStorage.getItem("admin_access_token");
+    try {
+      const res = await fetch(
+        `${API_URL}/api/admin/orders/${orderId}/payment-proof`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+      if (!res.ok) throw new Error("Gagal menghapus bukti pembayaran.");
+      toast.success("Bukti pembayaran dihapus. Silakan upload ulang.");
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsDeletingPayment(false);
+    }
+  };
+
+  // --- [BARU] Fungsi Admin Upload Bukti Pembayaran ---
+  const handleAdminUploadPayment = async () => {
+    if (!paymentProofFile) {
+      toast.error("Pilih file gambar terlebih dahulu.");
+      return;
+    }
+    setIsUploadingPayment(true);
+    const token = localStorage.getItem("admin_access_token");
+    const formData = new FormData();
+    formData.append("proofImage", paymentProofFile); // Pastikan nama field sesuai backend uploadOrderProofController
+
+    try {
+      // Kita gunakan endpoint PUT yang sudah ada: /api/admin/orders/:id/upload-proof
+      const res = await fetch(
+        `${API_URL}/api/admin/orders/${orderId}/upload-proof`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+          body: formData,
+        },
+      );
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Gagal mengupload bukti.");
+      }
+
+      toast.success("Bukti pembayaran berhasil diupload oleh Admin.");
+      setPaymentProofFile(null);
+      fetchOrderDetails();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Terjadi kesalahan.");
+    } finally {
+      setIsUploadingPayment(false);
+    }
+  };
+
   const totalPendingItems = useMemo(() => {
     if (!orderDetails) return 0;
     return orderDetails.items.reduce(
       (sum, item) => sum + (item.quantity - item.quantity_shipped),
-      0
+      0,
     );
   }, [orderDetails]);
 
@@ -395,6 +460,7 @@ export default function AdminOrderDetailPage() {
 
   return (
     <div className="p-4 md:p-6 space-y-6">
+      {/* Header (Sama seperti sebelumnya) */}
       <div className="flex justify-between items-start">
         <div>
           <Button asChild variant="outline" size="icon" className="mb-2">
@@ -406,7 +472,6 @@ export default function AdminOrderDetailPage() {
             Detail Pesanan Bandar #{order.order_id}
           </h1>
           <p className="text-muted-foreground">Oleh: {order.bandar_name}</p>
-          {/* Badge Status */}
           <div className="mt-2">
             <span
               className={`px-2 py-1 rounded-full text-xs font-semibold
@@ -414,12 +479,12 @@ export default function AdminOrderDetailPage() {
                 order.status === "approved"
                   ? "bg-green-100 text-green-800"
                   : order.status === "processing"
-                  ? "bg-blue-100 text-blue-800"
-                  : order.status === "in_transit"
-                  ? "bg-purple-100 text-purple-800"
-                  : order.status === "pending"
-                  ? "bg-yellow-100 text-yellow-800"
-                  : "bg-gray-100 text-gray-800"
+                    ? "bg-blue-100 text-blue-800"
+                    : order.status === "in_transit"
+                      ? "bg-purple-100 text-purple-800"
+                      : order.status === "pending"
+                        ? "bg-yellow-100 text-yellow-800"
+                        : "bg-gray-100 text-gray-800"
               }`}
             >
               {order.status}
@@ -435,7 +500,7 @@ export default function AdminOrderDetailPage() {
       </div>
 
       <div className="grid gap-6 md:grid-cols-3">
-        {/* KOLOM KIRI: Item & Pengiriman */}
+        {/* KOLOM KIRI (Daftar Item & Pengiriman - Sama) */}
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
@@ -474,6 +539,7 @@ export default function AdminOrderDetailPage() {
                     key={ship.shipment_id}
                     className="py-3 border-b last:border-b-0"
                   >
+                    {/* ... (Konten riwayat pengiriman sama) ... */}
                     <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
                       <div>
                         <span className="font-medium">
@@ -481,17 +547,13 @@ export default function AdminOrderDetailPage() {
                         </span>
                         <span className="text-muted-foreground text-xs ml-2">
                           {new Date(ship.created_at).toLocaleDateString(
-                            "id-ID"
+                            "id-ID",
                           )}
                         </span>
                       </div>
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
-                          className={`capitalize px-2 py-1 text-xs font-semibold rounded-full ${
-                            ship.status === "in_transit"
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-green-100 text-green-800"
-                          }`}
+                          className={`capitalize px-2 py-1 text-xs font-semibold rounded-full ${ship.status === "in_transit" ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800"}`}
                         >
                           {ship.status}
                         </span>
@@ -537,7 +599,7 @@ export default function AdminOrderDetailPage() {
 
         {/* KOLOM KANAN: Aksi & Catatan */}
         <div className="md:col-span-1 space-y-6">
-          {/* --- [TAMBAHAN BARU] Card Verifikasi Pembayaran (Muncul jika status 'pending') --- */}
+          {/* Card Verifikasi Pembayaran (Approve/Reject) */}
           {order.status === "pending" && (
             <Card className="border-yellow-200 bg-yellow-50">
               <CardHeader>
@@ -558,10 +620,9 @@ export default function AdminOrderDetailPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <Check className="mr-2 h-4 w-4" />
-                  )}
+                  )}{" "}
                   Terima Pembayaran (Approve)
                 </Button>
-
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button
@@ -573,7 +634,7 @@ export default function AdminOrderDetailPage() {
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       ) : (
                         <X className="mr-2 h-4 w-4" />
-                      )}
+                      )}{" "}
                       Tolak Pesanan
                     </Button>
                   </AlertDialogTrigger>
@@ -581,8 +642,7 @@ export default function AdminOrderDetailPage() {
                     <AlertDialogHeader>
                       <AlertDialogTitle>Tolak Pesanan?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tindakan ini akan membatalkan pesanan dan tidak dapat
-                        dibatalkan. Bandar harus membuat pesanan ulang.
+                        Tindakan ini akan membatalkan pesanan.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -600,7 +660,7 @@ export default function AdminOrderDetailPage() {
             </Card>
           )}
 
-          {/* --- [Card Proses Pesanan] (Muncul jika status 'approved') --- */}
+          {/* Card Proses Pesanan (Packing) */}
           {order.status === "approved" && (
             <Card className="border-blue-200 bg-blue-50">
               <CardHeader>
@@ -619,14 +679,14 @@ export default function AdminOrderDetailPage() {
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   ) : (
                     <CheckCircle className="mr-2 h-4 w-4" />
-                  )}
+                  )}{" "}
                   Proses Pesanan (Packing)
                 </Button>
               </CardContent>
             </Card>
           )}
 
-          {/* --- Kartu Catatan Bandar --- */}
+          {/* Kartu Catatan Bandar */}
           <Card>
             <CardHeader>
               <CardTitle>Catatan dari Bandar</CardTitle>
@@ -647,133 +707,167 @@ export default function AdminOrderDetailPage() {
           </Card>
 
           {/* Tombol Lihat Invoice */}
-          {/* <Card>
+          <Card>
             <CardHeader>
               <CardTitle>Dokumen</CardTitle>
             </CardHeader>
             <CardContent>
               <Button asChild className="w-full" variant="outline">
-                <Link href={`/dashboard/orders/${orderId}/invoice`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Lihat Invoice
+                <Link href={`/dashboard/transactions/${orderId}/invoice`}>
+                  <Eye className="mr-2 h-4 w-4" /> Lihat Invoice
                 </Link>
               </Button>
             </CardContent>
-          </Card> */}
+          </Card>
 
+          {/* [MODIFIKASI] Kartu Bukti Pembayaran & Pengiriman */}
           <Card>
             <CardHeader>
-              <CardTitle>Buat Pengiriman Baru</CardTitle>
+              <CardTitle>Info Pengiriman & Pembayaran</CardTitle>
             </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+            <CardContent className="space-y-6">
+              {/* Bagian Bukti Pembayaran */}
+              <div className="space-y-4 border-b pb-4">
+                <Label className="font-semibold block">
+                  Bukti Pembayaran Bandar
+                </Label>
+
                 {order.payment_proof_url ? (
-                  <div className="pb-4 border-b">
-                    <Label>Bukti Pembayaran Bandar</Label>
+                  <div className="flex flex-col gap-2">
                     <Button
                       asChild
                       variant="link"
-                      className="p-0 h-auto w-full justify-start"
+                      className="p-0 h-auto w-full justify-start text-blue-600"
                     >
                       <Link
                         href={`${API_URL}/${order.payment_proof_url}`}
                         target="_blank"
                       >
-                        Lihat Bukti Pembayaran
+                        Lihat File Bukti
                       </Link>
                     </Button>
+
+                    {/* Tombol Hapus Bukti (Hanya jika belum in_transit agar aman) */}
+                    {order.status !== "in_transit" &&
+                      order.status !== "completed" && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full mt-2"
+                          onClick={handleDeletePaymentProof}
+                          disabled={isDeletingPayment}
+                        >
+                          {isDeletingPayment ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4 mr-2" />
+                          )}
+                          Hapus Bukti & Reset Status
+                        </Button>
+                      )}
                   </div>
                 ) : (
-                  <div className="pb-4 border-b">
-                    <p className="text-sm text-amber-600 italic">
+                  <div className="space-y-3">
+                    <p className="text-sm text-amber-600 italic bg-amber-50 p-2 rounded">
                       Belum ada bukti pembayaran.
                     </p>
-                  </div>
-                )}
 
-                <p className="text-sm text-muted-foreground pt-2">
-                  Pilih item yang akan dikirim dalam paket ini.
-                </p>
-                <div className="max-h-60 overflow-y-auto border rounded-md">
-                  {items.filter((item) => item.quantity > item.quantity_shipped)
-                    .length > 0 ? (
-                    items.map((item) => (
-                      <ShippableItem
-                        key={item.order_item_id}
-                        item={item}
-                        onSelectionChange={(selected, quantity) =>
-                          handleSelectionChange(
-                            item.order_item_id,
-                            item.produk_id,
-                            selected,
-                            quantity
+                    {/* Form Admin Upload Bukti */}
+                    <div className="space-y-2">
+                      <Label htmlFor="paymentProofAdmin" className="text-xs">
+                        Bantu Upload Bukti (Admin)
+                      </Label>
+                      <Input
+                        id="paymentProofAdmin"
+                        type="file"
+                        onChange={(e) =>
+                          setPaymentProofFile(
+                            e.target.files ? e.target.files[0] : null,
                           )
                         }
                       />
-                    ))
-                  ) : (
-                    <p className="text-sm text-center text-green-600 p-4">
-                      Semua item telah dikirim.
-                    </p>
-                  )}
-                </div>
-
-                {itemsToShip.size > 0 && (
-                  <div className="pt-4 border-t space-y-2">
-                    <Label htmlFor="proofFile">Unggah Bukti Foto Paket</Label>
-                    <Input
-                      id="proofFile"
-                      type="file"
-                      onChange={(e) =>
-                        setProofFile(e.target.files ? e.target.files[0] : null)
-                      }
-                    />
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        onClick={handleAdminUploadPayment}
+                        disabled={isUploadingPayment || !paymentProofFile}
+                      >
+                        {isUploadingPayment ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Upload className="h-4 w-4 mr-2" />
+                        )}
+                        Upload Bukti
+                      </Button>
+                    </div>
                   </div>
                 )}
-
-                <Button
-                  className="w-full"
-                  onClick={handleCreateShipment}
-                  disabled={isSubmitting || itemsToShip.size === 0}
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <Send className="mr-2 h-4 w-4" />
-                  )}
-                  Buat & Kirim Paket ({itemsToShip.size} item)
-                </Button>
               </div>
-            </CardContent>
-          </Card>
-          {/* ✅ TAMBAHAN: Invoice Button Card */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Lihat Invoice</CardTitle>
-              <CardDescription>Dokumen pesanan pelanggan</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild className="w-full" variant="outline">
-                <Link href={`/dashboard/orders/${orderId}/invoice`}>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Lihat Invoice
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Catatan dari Bandar</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {order.notes ? (
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                  {order.notes}
-                </p>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  Tidak ada catatan dari bandar untuk pesanan ini.
-                </p>
+
+              {/* Bagian Buat Pengiriman (Hanya muncul jika sudah ada bukti/approved) */}
+              {(order.status === "approved" ||
+                order.status === "processing" ||
+                order.status === "partially-shipped") && (
+                <div className="space-y-4">
+                  <Label className="font-semibold block">
+                    Buat Pengiriman Baru
+                  </Label>
+                  <p className="text-sm text-muted-foreground">
+                    Pilih item yang akan dikirim dalam paket ini.
+                  </p>
+                  <div className="max-h-60 overflow-y-auto border rounded-md">
+                    {items.filter(
+                      (item) => item.quantity > item.quantity_shipped,
+                    ).length > 0 ? (
+                      items.map((item) => (
+                        <ShippableItem
+                          key={item.order_item_id}
+                          item={item}
+                          onSelectionChange={(selected, quantity) =>
+                            handleSelectionChange(
+                              item.order_item_id,
+                              item.produk_id,
+                              selected,
+                              quantity,
+                            )
+                          }
+                        />
+                      ))
+                    ) : (
+                      <p className="text-sm text-center text-green-600 p-4">
+                        Semua item telah dikirim.
+                      </p>
+                    )}
+                  </div>
+
+                  {itemsToShip.size > 0 && (
+                    <div className="pt-2 space-y-2">
+                      <Label htmlFor="proof">Upload Foto Paket/Resi</Label>
+                      <Input
+                        id="proof"
+                        type="file"
+                        onChange={(e) =>
+                          setProofFile(
+                            e.target.files ? e.target.files[0] : null,
+                          )
+                        }
+                      />
+                    </div>
+                  )}
+
+                  <Button
+                    className="w-full mt-2"
+                    onClick={handleCreateShipment}
+                    disabled={isSubmitting || itemsToShip.size === 0}
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="mr-2 h-4 w-4" />
+                    )}
+                    Buat & Kirim Paket
+                  </Button>
+                </div>
               )}
             </CardContent>
           </Card>
