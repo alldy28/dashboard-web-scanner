@@ -713,7 +713,7 @@ export default function AdminOrderDetailPage() {
             </CardHeader>
             <CardContent>
               <Button asChild className="w-full" variant="outline">
-                <Link href={`/dashboard/transactions/${orderId}/invoice`}>
+                <Link href={`/dashboard/orders/${orderId}/invoice`}>
                   <Eye className="mr-2 h-4 w-4" /> Lihat Invoice
                 </Link>
               </Button>
