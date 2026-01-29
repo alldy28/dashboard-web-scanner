@@ -16,7 +16,8 @@ import {
   DollarSign,
   LogOut,
   Loader2,
-  FileText, // Tambah icon
+  FileText,
+  Users, // Tambah icon
 } from "lucide-react";
 
 type NavItem = { href: string; label: string; icon: React.ElementType };
@@ -32,6 +33,7 @@ const navItems: NavItem[] = [
   { href: "/dashboard/berita", label: "Berita", icon: Newspaper },
   { href: "/dashboard/banner", label: "Banner", icon: ImageIcon },
   { href: "/dashboard/konfirmasi-produk", label: "Proses Barang", icon: Boxes },
+  { href: "/dashboard/users", label: "Manajemen Pengguna", icon: Users },
 ];
 
 const NavLink = ({ href, label, icon: Icon }: NavItem) => {
