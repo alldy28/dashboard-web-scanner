@@ -392,7 +392,7 @@ Mohon segera dicek. Terima kasih.`;
                       <strong>Bank BCA</strong> <br />
                       No. Rek:{" "}
                       <span className="font-mono font-bold text-foreground">
-                        8730556677
+                        6790326812
                       </span>{" "}
                       <br />
                       A.N: <strong>Edi Hermanto</strong>
