@@ -113,7 +113,7 @@ export default function BandarDashboardPage() {
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {/* Card Tugas Baru */}
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">Tugas Baru</h3>
             <Package className="h-4 w-4 text-muted-foreground" />
@@ -124,10 +124,10 @@ export default function BandarDashboardPage() {
               Transaksi menunggu konfirmasi penerimaan
             </p>
           </div>
-        </div>
+        </div> */}
 
         {/* Card Siap Diambil */}
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">
               Siap Diambil Konsumen
@@ -142,10 +142,10 @@ export default function BandarDashboardPage() {
               Barang menunggu diambil oleh konsumen
             </p>
           </div>
-        </div>
+        </div> */}
 
         {/* Card Jumlah Konsumen */}
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">
               Konsumen di Wilayah Anda
@@ -160,10 +160,10 @@ export default function BandarDashboardPage() {
               Total konsumen yang terdaftar
             </p>
           </div>
-        </div>
+        </div> */}
 
         {/* Card Total Perak Digital */}
-        <div className="rounded-xl border bg-card text-card-foreground shadow">
+        {/* <div className="rounded-xl border bg-card text-card-foreground shadow">
           <div className="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
             <h3 className="tracking-tight text-sm font-medium">
               Total Perak Digital di Wilayah
@@ -178,11 +178,11 @@ export default function BandarDashboardPage() {
               Akumulasi simpanan perak konsumen
             </p>
           </div>
-        </div>
+        </div> */}
       </div>
 
       <div className="pt-4">
-        <Link href="/bandar-dashboard/transactions">
+        <Link href="/bandar-dashboard/orders">
           <Button>
             Lihat Semua Tugas Transaksi{" "}
             <ArrowUpRight className="ml-2 h-4 w-4" />

@@ -23,6 +23,8 @@ import {
   ExternalLink,
   Info,
   FileText,
+  AlertCircle,
+  XCircle, // [TAMBAHAN] Import icon untuk tombol batal
 } from "lucide-react";
 import {
   AlertDialog,
@@ -42,7 +44,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 // --- KONFIGURASI ---
-// Ganti dengan nomor WhatsApp Admin (Format: Kode Negara + Nomor tanpa '+')
 const ADMIN_WA_NUMBER = "6281222224489";
 
 // --- Tipe Data ---
@@ -60,6 +61,7 @@ type Shipment = {
 type OrderItem = {
   nama_produk: string;
   gramasi_produk: string;
+  series_produk: string;
   upload_gambar: string | null;
   quantity: number;
   price_at_order: string;
@@ -133,21 +135,37 @@ const InfoRow = ({
   </div>
 );
 
-// --- Komponen Anak: PaymentForm (Dengan WA Redirect) ---
+// --- Komponen Anak: PaymentForm (Diperbarui dengan Validasi Campuran & Tombol Batal) ---
 const PaymentForm = ({
   order,
+  items,
   onPaymentSuccess,
 }: {
   order: OrderDetails["order"];
+  items: OrderItem[];
   onPaymentSuccess: () => void;
 }) => {
   const [file, setFile] = useState<File | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState("Menghitung waktu...");
 
-  // ✅ PERBAIKAN: Definisikan API_URL satu kali di sini
-  // Menggunakan .replace(/\/$/, "") untuk membuang slash di akhir jika ada
   const API_URL = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/$/, "");
+
+  // [LOGIKA: Cek Campuran Produk]
+  const specialSeries = ["MiniGold", "MaxiGold", "MiniGold Special"];
+
+  const hasSpecialItems = items.some((item) => {
+    const series = item.series_produk || "";
+    return specialSeries.some((s) => series.toLowerCase() === s.toLowerCase());
+  });
+
+  const hasNonSpecialItems = items.some((item) => {
+    const series = item.series_produk || "";
+    return !specialSeries.some((s) => series.toLowerCase() === s.toLowerCase());
+  });
+
+  const isMixedOrder = hasSpecialItems && hasNonSpecialItems; // Campuran
+  const isPureSpecialOrder = hasSpecialItems && !hasNonSpecialItems; // Murni MiniGold
 
   useEffect(() => {
     if (
@@ -156,11 +174,7 @@ const PaymentForm = ({
     ) {
       if (order.status === "rejected") {
         setTimeLeft("Pesanan ini telah dibatalkan.");
-      } else if (
-        order.status === "approved" ||
-        order.status === "completed" ||
-        order.status === "in_transit"
-      ) {
+      } else {
         setTimeLeft("Pembayaran telah dikonfirmasi.");
       }
       return;
@@ -183,7 +197,7 @@ const PaymentForm = ({
       }
 
       const hours = Math.floor(
-        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+        (distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60),
       );
       const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
       const seconds = Math.floor((distance % (1000 * 60)) / 1000);
@@ -191,13 +205,52 @@ const PaymentForm = ({
       setTimeLeft(
         `${String(hours).padStart(2, "0")}j ${String(minutes).padStart(
           2,
-          "0"
-        )}m ${String(seconds).padStart(2, "0")}d`
+          "0",
+        )}m ${String(seconds).padStart(2, "0")}d`,
       );
     }, 1000);
 
     return () => clearInterval(interval);
   }, [order.expires_at, order.status]);
+
+  // [BARU] Fungsi Batalkan Pesanan
+  const handleCancelOrder = async () => {
+    if (!confirm("Apakah Anda yakin ingin membatalkan pesanan ini?")) return;
+
+    setIsLoading(true);
+    const token = localStorage.getItem("bandar_access_token");
+
+    if (!token) {
+      window.location.href = "/bandar-login";
+      return;
+    }
+
+    try {
+      // Pastikan endpoint ini dibuat di backend (bandarRoutes & bandarController)
+      const res = await fetch(
+        `${API_URL}/api/bandar/orders/${order.order_id}/cancel`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${token}` },
+        },
+      );
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Gagal membatalkan pesanan.");
+      }
+
+      toast.success("Pesanan berhasil dibatalkan.");
+      onPaymentSuccess(); // Refresh data halaman untuk update status
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        "Gagal membatalkan pesanan. Hubungi admin jika masalah berlanjut.",
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -221,7 +274,6 @@ const PaymentForm = ({
     formData.append("orderId", order.order_id.toString());
 
     try {
-      // Gunakan API_URL yang sudah didefinisikan di atas
       const res = await fetch(`${API_URL}/api/bandar/orders/upload-proof`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
@@ -236,7 +288,6 @@ const PaymentForm = ({
 
       toast.success("Bukti berhasil diunggah! Mengalihkan ke WhatsApp...");
 
-      // Cari path gambar dari respon backend
       let imagePath =
         responseData.payment_proof_url ||
         responseData.payment_proof ||
@@ -247,18 +298,15 @@ const PaymentForm = ({
       let uploadedImageUrl = "";
 
       if (imagePath) {
-        // Pastikan path diawali dengan slash '/' jika belum ada
         if (!imagePath.startsWith("/")) {
           imagePath = `/${imagePath}`;
         }
-        // Gabungkan API_URL + imagePath
         uploadedImageUrl = `${API_URL}${imagePath}`;
       } else {
         uploadedImageUrl =
           "(Link gambar tidak terbaca, silakan cek manual di sistem)";
       }
 
-      // Pesan WhatsApp
       const message = `Halo Admin, saya sudah melakukan pembayaran.
       
 Detail Pesanan:
@@ -272,7 +320,7 @@ ${uploadedImageUrl}
 Mohon segera dicek. Terima kasih.`;
 
       const waUrl = `https://wa.me/${ADMIN_WA_NUMBER}?text=${encodeURIComponent(
-        message
+        message,
       )}`;
       window.open(waUrl, "_blank");
 
@@ -296,68 +344,132 @@ Mohon segera dicek. Terima kasih.`;
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 rounded-lg border bg-background p-4">
-          <h4 className="mb-2 flex items-center text-sm font-semibold">
-            <Info className="mr-2 h-4 w-4" />
-            Info Rekening Pembayaran pilih salah satu dibawah ini :
-          </h4>
-          <br />
-          <div className="space-y-1 text-sm text-muted-foreground">
-            <ul>
-              <li>
-                <strong>Bank:</strong> BCA
-              </li>
-              <li>
-                <strong>No. Rekening:</strong> 6790810005 A.N Apriliani Fauziah
-              </li>
-              <br />
-              <li>
-                <strong>No. Rekening:</strong> 2040824629 A.N Sarah Mardhatillah
-              </li>
-              <br />
-              <li>
-                <strong>No. Rekening:</strong> 7001071231 A.N Oktaviani Putri
-              </li>
-            </ul>
-            <p></p>
-            <br />
-          </div>
-        </div>
+        {/* [BLOKIR JIKA CAMPURAN] */}
+        {isMixedOrder ? (
+          <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-900 mb-4">
+            <div className="flex items-center gap-2 font-bold mb-2">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <span>Pesanan Tidak Boleh Campuran</span>
+            </div>
+            <p className="text-sm">
+              Mohon maaf, Anda tidak dapat melanjutkan pembayaran karena pesanan
+              ini mengandung campuran produk
+              <strong> MiniGold/MaxiGold</strong> dan{" "}
+              <strong>Produk Lainnya</strong>.
+            </p>
+            <p className="text-sm mt-2 font-medium">
+              Karena perbedaan rekening tujuan, mohon batalkan pesanan ini dan
+              buat dua pesanan terpisah sesuai jenis produknya.
+            </p>
 
-        <div className="text-center font-semibold text-destructive mb-4">
-          {timeLeft}
-        </div>
-        <form onSubmit={handleUpload} className="space-y-4">
-          <div>
-            <Label htmlFor="paymentUpload">Unggah Bukti Transfer</Label>
-            <Input
-              id="paymentUpload"
-              type="file"
-              required
-              accept="image/*"
-              onChange={(e) =>
-                setFile(e.target.files ? e.target.files[0] : null)
-              }
-            />
+            {/* [TAMBAHAN] Tombol Batalkan Pesanan */}
+            <Button
+              variant="destructive"
+              className="mt-4 w-full"
+              onClick={handleCancelOrder}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <XCircle className="mr-2 h-4 w-4" />
+              )}
+              Batalkan Pesanan Ini
+            </Button>
           </div>
-          <Button
-            type="submit"
-            disabled={isLoading || timeLeft.includes("habis")}
-            className="w-full bg-green-600 hover:bg-green-700 text-white"
-          >
-            {isLoading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Upload className="mr-2 h-4 w-4" />
-            )}
-            Konfirmasi & Chat Admin
-          </Button>
-        </form>
+        ) : (
+          // [TAMPILKAN JIKA VALID]
+          <>
+            <div className="mb-4 rounded-lg border bg-background p-4">
+              <h4 className="mb-2 flex items-center text-sm font-semibold">
+                <Info className="mr-2 h-4 w-4" />
+                Info Rekening Pembayaran:
+              </h4>
+              <div className="space-y-1 text-sm text-muted-foreground ml-6">
+                {isPureSpecialOrder ? (
+                  <ul className="list-disc pl-4 space-y-2">
+                    <li>
+                      <strong>Bank BCA</strong> <br />
+                      No. Rek:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        8730556677
+                      </span>{" "}
+                      <br />
+                      A.N: <strong>Edi Hermanto</strong>
+                    </li>
+                  </ul>
+                ) : (
+                  <ul className="list-disc pl-4 space-y-2">
+                    <li>
+                      <strong>Bank BCA</strong> <br />
+                      No. Rek:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        6790810005
+                      </span>{" "}
+                      <br />
+                      A.N: <strong>Apriliani Fauziah</strong>
+                    </li>
+                    <li>
+                      <strong>Bank BCA</strong> <br />
+                      No. Rek:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        2040824629
+                      </span>{" "}
+                      <br />
+                      A.N: <strong>Sarah Mardhatillah</strong>
+                    </li>
+                    <li>
+                      <strong>Bank BCA</strong> <br />
+                      No. Rek:{" "}
+                      <span className="font-mono font-bold text-foreground">
+                        7001071231
+                      </span>{" "}
+                      <br />
+                      A.N: <strong>Oktaviani Putri</strong>
+                    </li>
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            <div className="text-center font-semibold text-destructive mb-4">
+              {timeLeft}
+            </div>
+
+            <form onSubmit={handleUpload} className="space-y-4">
+              <div>
+                <Label htmlFor="paymentUpload">Unggah Bukti Transfer</Label>
+                <Input
+                  id="paymentUpload"
+                  type="file"
+                  required
+                  accept="image/*"
+                  onChange={(e) =>
+                    setFile(e.target.files ? e.target.files[0] : null)
+                  }
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={isLoading || timeLeft.includes("habis")}
+                className="w-full bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isLoading ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Upload className="mr-2 h-4 w-4" />
+                )}
+                Konfirmasi & Chat Admin
+              </Button>
+            </form>
+          </>
+        )}
       </CardContent>
     </Card>
   );
 };
 
+// ... (ShipmentCard & OrderDetailPage TETAP SAMA seperti sebelumnya) ...
 // --- Komponen Anak: ShipmentCard ---
 const ShipmentCard = ({
   shipment,
@@ -515,7 +627,7 @@ export default function OrderDetailPage() {
         {
           method: "PUT",
           headers: { Authorization: `Bearer ${token}` },
-        }
+        },
       );
       if (!res.ok) {
         const errData = await res.json();
@@ -568,7 +680,7 @@ export default function OrderDetailPage() {
                           item.upload_gambar
                             ? `${API_URL}/${item.upload_gambar}`
                             : `https://placehold.co/80x80/e2e8f0/cccccc.png?text=${encodeURIComponent(
-                                item.nama_produk
+                                item.nama_produk,
                               )}`
                         }
                         alt={item.nama_produk}
@@ -581,6 +693,9 @@ export default function OrderDetailPage() {
                         <p className="text-sm text-muted-foreground">
                           {item.gramasi_produk}
                         </p>
+                        <p className="text-xs text-muted-foreground italic">
+                          Series: {item.series_produk || "-"}
+                        </p>
                         <p className="text-sm">
                           {item.quantity} x{" "}
                           {formatCurrency(item.price_at_order)}
@@ -588,7 +703,7 @@ export default function OrderDetailPage() {
                       </div>
                       <p className="font-semibold">
                         {formatCurrency(
-                          item.quantity * Number(item.price_at_order)
+                          item.quantity * Number(item.price_at_order),
                         )}
                       </p>
                     </div>
@@ -694,9 +809,13 @@ export default function OrderDetailPage() {
           </Card>
 
           {["pending-payment", "pre-order-pending-payment"].includes(
-            order.status
+            order.status,
           ) ? (
-            <PaymentForm order={order} onPaymentSuccess={fetchOrderDetails} />
+            <PaymentForm
+              order={order}
+              items={items}
+              onPaymentSuccess={fetchOrderDetails}
+            />
           ) : order.status === "rejected" ? (
             <Card>
               <CardHeader>
