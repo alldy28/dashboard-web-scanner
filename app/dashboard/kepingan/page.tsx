@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react"; // ✅ useMemo dihapus jika tidak ada definisi useMemo yang tidak digunakan
+import React, { useState, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,8 +12,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-}
- from "@/components/ui/table";
+} from "@/components/ui/table";
 import {
   Card,
   CardContent,
@@ -31,9 +30,29 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+// [TAMBAHAN] Import komponen Dialog untuk Edit
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Trash2, Lock, Unlock, ShieldAlert, ChevronLeft, ChevronRight } from "lucide-react";
+// [TAMBAHAN] Import icon Edit dan Loader2
+import {
+  Trash2,
+  Lock,
+  Unlock,
+  ShieldAlert,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  Loader2,
+} from "lucide-react";
 import { apiClient } from "@/lib/api";
+import { toast } from "sonner"; // Asumsi Anda menggunakan sonner untuk notifikasi
 
 type Kepingan = {
   id_kepingan: number;
@@ -50,11 +69,11 @@ type Kepingan = {
 };
 
 type PaginationMeta = {
-    currentPage: number;
-    limit: number;
-    totalItems: number;
-    totalPages: number;
-}
+  currentPage: number;
+  limit: number;
+  totalItems: number;
+  totalPages: number;
+};
 
 const formatDate = (dateString: string | null) => {
   if (!dateString) return "-";
@@ -75,10 +94,20 @@ export default function KepinganPage() {
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRows, setSelectedRows] = useState<number[]>([]);
+
+  // State untuk Blokir
   const [isAlertOpen, setIsAlertOpen] = useState(false);
-  const [selectedKepingan, setSelectedKepingan] = useState<Kepingan | null>(null);
+  const [selectedKepingan, setSelectedKepingan] = useState<Kepingan | null>(
+    null,
+  );
   const [blockReason, setBlockReason] = useState("");
-  
+
+  // [TAMBAHAN] State untuk Edit Kode Validasi
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [editingKepingan, setEditingKepingan] = useState<Kepingan | null>(null);
+  const [newKodeValidasi, setNewKodeValidasi] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
   const [paginationMeta, setPaginationMeta] = useState<PaginationMeta>({
     currentPage: 1,
     limit: ROWS_PER_PAGE,
@@ -86,85 +115,83 @@ export default function KepinganPage() {
     totalPages: 1,
   });
 
-  const fetchData = useCallback(async (page: number, limit: number, search: string = "") => {
-    setIsLoading(true);
-    setError(null);
-    try {
-        const url = `/api/admin/kepingan?page=${page}&limit=${limit}&search=${encodeURIComponent(search)}`;
-        
-        const response: { kepinganList: Kepingan[] } & PaginationMeta = await apiClient(url, {
+  const fetchData = useCallback(
+    async (page: number, limit: number, search: string = "") => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const url = `/api/admin/kepingan?page=${page}&limit=${limit}&search=${encodeURIComponent(
+          search,
+        )}`;
+
+        const response: { kepinganList: Kepingan[] } & PaginationMeta =
+          await apiClient(url, {
             cache: "no-store",
-        });
+          });
 
         setData(response.kepinganList || []);
         setPaginationMeta({
-            currentPage: response.currentPage,
-            limit: response.limit,
-            totalItems: response.totalItems,
-            totalPages: response.totalPages,
+          currentPage: response.currentPage,
+          limit: response.limit,
+          totalItems: response.totalItems,
+          totalPages: response.totalPages,
         });
-
-    } catch (err) {
+      } catch (err) {
         setError(err instanceof Error ? err.message : "Gagal memuat data.");
         setData([]);
-    } finally {
+      } finally {
         setIsLoading(false);
-    }
-  }, [setData, setPaginationMeta, setIsLoading, setError]); // ✅ Tambahkan semua setter state sebagai dependency.
+      }
+    },
+    [setData, setPaginationMeta, setIsLoading, setError],
+  );
 
-  // 1. useEffect untuk memuat data pertama kali (initial load)
   useEffect(() => {
-    // Kita hanya perlu memanggilnya sekali saat mount. searchTerm akan ditangani oleh useEffect lain.
-    fetchData(1, ROWS_PER_PAGE, ""); 
-  }, [fetchData]); // ✅ Dependensi yang benar
+    fetchData(1, ROWS_PER_PAGE, "");
+  }, [fetchData]);
 
-  // 2. useEffect untuk memuat data saat pencarian (searchTerm) berubah
   useEffect(() => {
-    // Selalu kembali ke halaman 1 saat search
     const handler = setTimeout(() => {
-        fetchData(1, ROWS_PER_PAGE, searchTerm);
-        setSelectedRows([]);
-    }, 300); // Debounce 300ms untuk performa pencarian
-    
-    return () => {
-        clearTimeout(handler);
-    }
-    
-  }, [searchTerm, fetchData]); // ✅ Dependensi yang benar
+      fetchData(1, ROWS_PER_PAGE, searchTerm);
+      setSelectedRows([]);
+    }, 300);
 
-  // Fungsi untuk mengubah halaman (memuat data baru dari server)
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm, fetchData]);
+
   const goToPage = (page: number) => {
     if (page >= 1 && page <= paginationMeta.totalPages) {
-        fetchData(page, ROWS_PER_PAGE, searchTerm);
-        setSelectedRows([]);
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+      fetchData(page, ROWS_PER_PAGE, searchTerm);
+      setSelectedRows([]);
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
   };
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
       setSelectedRows((prev) => {
-          const newSelected = new Set(prev);
-          data.forEach(k => newSelected.add(k.id_kepingan));
-          return Array.from(newSelected);
+        const newSelected = new Set(prev);
+        data.forEach((k) => newSelected.add(k.id_kepingan));
+        return Array.from(newSelected);
       });
     } else {
-      setSelectedRows((prev) => 
-        prev.filter((id) => !data.map((k) => k.id_kepingan).includes(id))
+      setSelectedRows((prev) =>
+        prev.filter((id) => !data.map((k) => k.id_kepingan).includes(id)),
       );
     }
   };
-    
+
   const isAllRowsSelectedOnPage =
-    data.length > 0 &&
-    data.every((k) => selectedRows.includes(k.id_kepingan));
+    data.length > 0 && data.every((k) => selectedRows.includes(k.id_kepingan));
 
   const handleSelectRow = (id: number, checked: boolean) => {
     if (checked) {
       setSelectedRows((prev: number[]) => [...prev, id]);
     } else {
       setSelectedRows((prev: number[]) =>
-        prev.filter((rowId: number) => rowId !== id)
+        prev.filter((rowId: number) => rowId !== id),
       );
     }
   };
@@ -173,7 +200,7 @@ export default function KepinganPage() {
     if (selectedRows.length === 0) return;
     if (
       !window.confirm(
-        `Anda yakin ingin menghapus ${selectedRows.length} kepingan terpilih? Aksi ini tidak dapat dibatalkan.`
+        `Anda yakin ingin menghapus ${selectedRows.length} kepingan terpilih? Aksi ini tidak dapat dibatalkan.`,
       )
     )
       return;
@@ -187,10 +214,9 @@ export default function KepinganPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids: idsToDelete }),
       });
-      
+
       alert(`${idsToDelete.length} kepingan berhasil dihapus.`);
       fetchData(paginationMeta.currentPage, ROWS_PER_PAGE, searchTerm);
-      
     } catch (error) {
       console.error("Error saat menghapus:", error);
       alert("Gagal menghapus kepingan.");
@@ -198,6 +224,7 @@ export default function KepinganPage() {
     }
   };
 
+  // --- Logic Blokir ---
   const openBlockDialog = (kepingan: Kepingan) => {
     setSelectedKepingan(kepingan);
     setBlockReason(kepingan.block_reason || "");
@@ -219,20 +246,78 @@ export default function KepinganPage() {
     };
 
     try {
-      await apiClient(`/api/admin/kepingan/block/${selectedKepingan.uuid_random}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      
+      await apiClient(
+        `/api/admin/kepingan/block/${selectedKepingan.uuid_random}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
+
       fetchData(paginationMeta.currentPage, ROWS_PER_PAGE, searchTerm);
       setSelectedKepingan(null);
       setBlockReason("");
       setIsAlertOpen(false);
-
     } catch (err) {
       console.error("Error saat mengubah status blokir:", err);
       alert("Gagal mengubah status blokir.");
+    }
+  };
+
+  // --- [TAMBAHAN] Logic Edit Kode Validasi ---
+  const handleEditClick = (kepingan: Kepingan) => {
+    setEditingKepingan(kepingan);
+    setNewKodeValidasi(kepingan.kode_validasi);
+    setIsEditOpen(true);
+  };
+
+  const handleSaveKodeValidasi = async () => {
+    if (!editingKepingan) return;
+    if (!newKodeValidasi.trim()) {
+      toast.error("Kode validasi tidak boleh kosong.");
+      return;
+    }
+    if (newKodeValidasi.length !== 6) {
+      // Asumsi kode validasi 6 digit
+      toast.error("Kode validasi harus 6 karakter.");
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Panggil API Backend
+      // Pastikan Anda membuat endpoint ini di backend: PUT /api/admin/kepingan/:uuid/update-code
+      await apiClient(
+        `/api/admin/kepingan/${editingKepingan.uuid_random}/update-code`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ kode_validasi: newKodeValidasi }),
+        },
+      );
+
+      toast.success("Kode validasi berhasil diperbarui.");
+
+      // Update data di tabel lokal
+      setData((prev) =>
+        prev.map((item) =>
+          item.id_kepingan === editingKepingan.id_kepingan
+            ? { ...item, kode_validasi: newKodeValidasi }
+            : item,
+        ),
+      );
+
+      setIsEditOpen(false);
+      setEditingKepingan(null);
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Gagal mengupdate kode validasi.",
+      );
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -243,7 +328,8 @@ export default function KepinganPage() {
         <CardHeader>
           <CardTitle>Daftar Semua Kepingan</CardTitle>
           <CardDescription>
-            Lacak, kelola, blokir, dan hapus setiap kepingan produk. (20 data/halaman)
+            Lacak, kelola, blokir, dan hapus setiap kepingan produk. (20
+            data/halaman)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -256,7 +342,8 @@ export default function KepinganPage() {
             />
             {selectedRows.length > 0 && (
               <Button variant="destructive" onClick={handleDeleteSelected}>
-                <Trash2 className="mr-2 h-4 w-4" /> Hapus ({selectedRows.length})
+                <Trash2 className="mr-2 h-4 w-4" /> Hapus ({selectedRows.length}
+                )
               </Button>
             )}
           </div>
@@ -270,7 +357,9 @@ export default function KepinganPage() {
                   <TableHead className="w-[50px]">
                     <Checkbox
                       checked={isAllRowsSelectedOnPage}
-                      onCheckedChange={(checked: boolean) => handleSelectAll(checked)}
+                      onCheckedChange={(checked: boolean) =>
+                        handleSelectAll(checked)
+                      }
                       aria-label="Pilih semua baris di halaman ini"
                     />
                   </TableHead>
@@ -293,7 +382,9 @@ export default function KepinganPage() {
                 ) : data.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} className="h-24 text-center">
-                      {searchTerm ? `Tidak ditemukan kepingan untuk "${searchTerm}".` : "Tidak ada kepingan produk yang tersedia."}
+                      {searchTerm
+                        ? `Tidak ditemukan kepingan untuk "${searchTerm}".`
+                        : "Tidak ada kepingan produk yang tersedia."}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -301,9 +392,14 @@ export default function KepinganPage() {
                     <TableRow
                       key={kepingan.id_kepingan}
                       data-state={
-                        selectedRows.includes(kepingan.id_kepingan) && "selected"
+                        selectedRows.includes(kepingan.id_kepingan) &&
+                        "selected"
                       }
-                      className={kepingan.is_blocked ? "bg-red-50/50 hover:bg-red-100/50" : ""}
+                      className={
+                        kepingan.is_blocked
+                          ? "bg-red-50/50 hover:bg-red-100/50"
+                          : ""
+                      }
                     >
                       <TableCell>
                         <Checkbox
@@ -314,7 +410,9 @@ export default function KepinganPage() {
                         />
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{kepingan.nama_produk}</div>
+                        <div className="font-medium">
+                          {kepingan.nama_produk}
+                        </div>
                         <div className="text-sm text-muted-foreground">
                           {kepingan.gramasi_produk}
                         </div>
@@ -322,7 +420,7 @@ export default function KepinganPage() {
                       <TableCell className="font-mono text-xs">
                         {kepingan.uuid_random}
                       </TableCell>
-                      <TableCell className="font-mono text-sm">
+                      <TableCell className="font-mono text-sm font-bold">
                         {kepingan.kode_validasi}
                       </TableCell>
                       <TableCell>
@@ -351,32 +449,51 @@ export default function KepinganPage() {
                       </TableCell>
                       <TableCell>{formatDate(kepingan.blocked_at)}</TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openBlockDialog(kepingan)}
-                        >
-                          {kepingan.is_blocked ? (
-                            <Unlock className="h-4 w-4 mr-2" />
-                          ) : (
-                            <Lock className="h-4 w-4 mr-2" />
-                          )}
-                          {kepingan.is_blocked ? "Buka Blokir" : "Blokir"}
-                        </Button>
+                        <div className="flex justify-end gap-2">
+                          {/* [TAMBAHAN] Tombol Edit */}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleEditClick(kepingan)}
+                            title="Edit Kode Validasi"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openBlockDialog(kepingan)}
+                            className={
+                              kepingan.is_blocked
+                                ? "text-green-600 border-green-200 hover:bg-green-50"
+                                : "text-red-600 border-red-200 hover:bg-red-50"
+                            }
+                          >
+                            {kepingan.is_blocked ? (
+                              <>
+                                <Unlock className="h-4 w-4 mr-1" /> Buka
+                              </>
+                            ) : (
+                              <>
+                                <Lock className="h-4 w-4 mr-1" /> Blokir
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
-                  )
-                )
-                )
-              }
+                  ))
+                )}
               </TableBody>
             </Table>
           </div>
-          
+
           {/* Kontrol Pagination */}
           <div className="flex items-center justify-between space-x-2 py-4">
             <div className="flex-1 text-sm text-muted-foreground">
-              Menampilkan {data.length} dari **{paginationMeta.totalItems}** total kepingan.
+              Menampilkan {data.length} dari **{paginationMeta.totalItems}**
+              total kepingan.
             </div>
             <div className="flex items-center space-x-2">
               <Button
@@ -389,23 +506,62 @@ export default function KepinganPage() {
                 Sebelumnya
               </Button>
               <span className="text-sm font-medium">
-                Halaman **{paginationMeta.currentPage}** dari **{paginationMeta.totalPages}**
+                Halaman **{paginationMeta.currentPage}** dari **
+                {paginationMeta.totalPages}**
               </span>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => goToPage(paginationMeta.currentPage + 1)}
-                disabled={paginationMeta.currentPage >= paginationMeta.totalPages || isLoading}
+                disabled={
+                  paginationMeta.currentPage >= paginationMeta.totalPages ||
+                  isLoading
+                }
               >
                 Berikutnya
                 <ChevronRight className="h-4 w-4 ml-1" />
               </Button>
             </div>
           </div>
-          
         </CardContent>
       </Card>
 
+      {/* [TAMBAHAN] Modal Edit Kode Validasi */}
+      <Dialog open={isEditOpen} onOpenChange={setIsEditOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Kode Validasi</DialogTitle>
+            <DialogDescription>
+              Ubah kode validasi untuk kepingan dengan UUID: <br />
+              <span className="font-mono font-bold text-xs">
+                {editingKepingan?.uuid_random}
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Label htmlFor="kode">Kode Validasi Baru</Label>
+            <Input
+              id="kode"
+              value={newKodeValidasi}
+              onChange={(e) => setNewKodeValidasi(e.target.value)}
+              placeholder="Masukkan 6 digit kode baru"
+              className="mt-2 text-center text-lg font-mono tracking-widest"
+              maxLength={6}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={handleSaveKodeValidasi} disabled={isSaving}>
+              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Simpan Perubahan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal Blokir (Yang Lama) */}
       <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -433,9 +589,9 @@ export default function KepinganPage() {
           )}
           <AlertDialogFooter>
             <AlertDialogCancel>Batal</AlertDialogCancel>
-            <AlertDialogAction 
-                onClick={handleBlockToggle}
-                disabled={!selectedKepingan?.is_blocked && !blockReason.trim()}
+            <AlertDialogAction
+              onClick={handleBlockToggle}
+              disabled={!selectedKepingan?.is_blocked && !blockReason.trim()}
             >
               Lanjutkan
             </AlertDialogAction>
