@@ -266,7 +266,6 @@ export function GenerateQrModal({
     setError(null);
 
     try {
-      // Simpan ke database
       await apiClient("/api/admin/produk/save-kepingan", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -275,7 +274,9 @@ export function GenerateQrModal({
 
       const zip = new JSZip();
 
-      // Load Logo (hanya sekali di luar loop untuk performa)
+      // --- HEADER CSV ---
+      let csvContent = "Isi QR,nomor validasi,nomor id,nama produk,gramasi\n";
+
       const logoImg = new window.Image();
       logoImg.crossOrigin = "Anonymous";
       logoImg.src = "/logoSilverium.png";
@@ -284,73 +285,53 @@ export function GenerateQrModal({
         logoImg.onerror = reject;
       });
 
-      // Loop setiap kepingan
       for (const kepingan of previewKepingan) {
-        const qrContent = `${WEBSITE_URL}/${kepingan.uuid_random}`;
+        const qrLink = `${WEBSITE_URL}/${kepingan.uuid_random}`;
         const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
         const validationCode = kepingan.kode_validasi;
 
-        // Setup Canvas
+        // --- TAMBAH BARIS KE CSV ---
+        csvContent += `${qrLink},${validationCode},${uuidSlice},"${namaProduk}","${gramasiProduk}"\n`;
+
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
         if (!ctx) continue;
 
-        // Tingkatkan sedikit tinggi canvas jika nama produk panjang (opsional, default 200)
         canvas.width = 370;
         canvas.height = 200;
-
-        // Background Putih
         ctx.fillStyle = "white";
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-        // Generate QR Code di canvas terpisah
         const qrCanvas = document.createElement("canvas");
-        await QRCode.toCanvas(qrCanvas, qrContent, {
+        await QRCode.toCanvas(qrCanvas, qrLink, {
           width: 400,
           margin: 1,
           errorCorrectionLevel: "H",
         });
 
-        // Render QR ke Canvas Utama
         ctx.drawImage(qrCanvas, 10, 10, 180, 180);
-
-        // Render Logo di tengah QR
-        const logoSize = 150; // Sesuaikan ukuran logo jika perlu
-        const logoX = 190 + (180 - logoSize) / 2; // Hitungan ini sepertinya menempatkan logo di area kanan?
-        // Jika ingin logo di tengah QR (area kiri):
-        // const logoX_QR = 10 + (180 - logoSize) / 2;
-        // Namun saya ikuti logika koordinat kode asli Anda:
+        const logoSize = 150;
+        const logoX = 190 + (180 - logoSize) / 2;
         const logoY = -50 + (180 - logoSize) / 2;
         ctx.drawImage(logoImg, logoX, logoY, logoSize, logoSize);
 
-        // Render Text
         ctx.fillStyle = "black";
-
-        // 1. Kode Validasi
         ctx.font = "bold 35px Arial";
         ctx.fillText(validationCode, 220, 110);
-
-        // 2. UUID Slice
         ctx.font = "22px monospace";
         ctx.fillText("ID:" + uuidSlice, 220, 145);
-
-        // 3. Nama Produk (DENGAN WRAPPING)
         ctx.font = "bold 12px monospace";
-
-        // Gabungkan nama dan gramasi dengan spasi
         const fullText = `${namaProduk} ${gramasiProduk}`;
-
-        // Hitung sisa lebar canvas: 370 (lebar total) - 220 (posisi X) = 150px
-        // Kita set maxWidth 140px biar ada margin kanan 10px
         wrapText(ctx, fullText, 220, 180, 140, 12);
 
-        // Convert ke Blob dan masukkan ke ZIP
         const dataUrl = canvas.toDataURL("image/png");
         const blob = await (await fetch(dataUrl)).blob();
         zip.file(`qrcode_${uuidSlice}_${validationCode}.png`, blob);
       }
 
-      // Generate dan Download ZIP
+      // --- MASUKKAN CSV KE ZIP ---
+      zip.file("data_produk.csv", csvContent);
+
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
       const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
@@ -360,9 +341,7 @@ export function GenerateQrModal({
       onClose();
     } catch (err) {
       console.error(err);
-      setError(
-        err instanceof Error ? err.message : "Gagal menyimpan atau mengunduh."
-      );
+      setError(err instanceof Error ? err.message : "Gagal menyimpan.");
     } finally {
       setIsLoading(false);
     }
@@ -408,21 +387,27 @@ export function GenerateQrModal({
       });
 
       const zip = new JSZip();
+
+      // --- HEADER CSV ---
+      let csvContent = "Isi QR,nomor validasi,nomor id,nama produk,gramasi\n";
+
       const template = templates[selectedTemplate];
       const canvas = document.createElement("canvas");
       const ctx = canvas.getContext("2d");
       if (!ctx) throw new Error("Canvas context tidak tersedia");
 
       for (const kepingan of previewKepingan) {
-        const qrContent = `${WEBSITE_URL}/${kepingan.uuid_random}`;
+        const qrLink = `${WEBSITE_URL}/${kepingan.uuid_random}`;
         const uuidSlice = kepingan.uuid_random.substring(0, 6).toUpperCase();
         const validationCode = kepingan.kode_validasi;
 
+        // --- TAMBAH BARIS KE CSV ---
+        csvContent += `${uuidSlice},"${namaProduk}","${gramasiProduk}",${validationCode},${qrLink}\n`;
+
         const templateImg = new window.Image();
         templateImg.crossOrigin = "Anonymous";
-
         const qrImg = new window.Image();
-        qrImg.src = await QRCode.toDataURL(qrContent, {
+        qrImg.src = await QRCode.toDataURL(qrLink, {
           width: template.qrSize,
           margin: 1,
         });
@@ -435,7 +420,6 @@ export function GenerateQrModal({
 
         canvas.width = templateImg.width;
         canvas.height = templateImg.height;
-
         ctx.drawImage(templateImg, 0, 0);
         ctx.drawImage(qrImg, template.qrX, template.qrY);
 
@@ -447,16 +431,13 @@ export function GenerateQrModal({
         ctx.fillText(
           template.staticText,
           template.staticTextX,
-          template.staticTextY
+          template.staticTextY,
         );
-
         ctx.font = template.font3;
         ctx.fillText(`${gramasiProduk}`, template.weightX, template.weightY);
         ctx.fillText(`${fineness}`, template.finenessX, template.finenessY);
-
         ctx.font = template.font1;
         ctx.fillText(validationCode, template.textX, template.textY);
-
         ctx.font = template.font2;
         ctx.fillText(uuidSlice, template.textX, template.textY + 40);
 
@@ -465,11 +446,13 @@ export function GenerateQrModal({
         zip.file(`qrcode_${uuidSlice}_${validationCode}.png`, blob);
       }
 
+      // --- MASUKKAN CSV KE ZIP ---
+      zip.file("data_produk_bullion.csv", csvContent);
+
       const zipBlob = await zip.generateAsync({ type: "blob" });
       const cleanNama = namaProduk.replace(/[^a-zA-Z0-9]/g, "_");
       const cleanGramasi = gramasiProduk.replace(/[^a-zA-Z0-9]/g, "_");
-      const fileName = `QR_Bullion_${cleanNama}_${cleanGramasi}.zip`;
-      saveAs(zipBlob, fileName);
+      saveAs(zipBlob, `QR_Bullion_${cleanNama}_${cleanGramasi}.zip`);
 
       onSuccess();
       onClose();
