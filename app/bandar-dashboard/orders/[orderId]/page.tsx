@@ -409,24 +409,6 @@ Mohon segera dicek. Terima kasih.`;
                       <br />
                       A.N: <strong>Apriliani Fauziah</strong>
                     </li>
-                    <li>
-                      <strong>Bank BCA</strong> <br />
-                      No. Rek:{" "}
-                      <span className="font-mono font-bold text-foreground">
-                        2040824629
-                      </span>{" "}
-                      <br />
-                      A.N: <strong>Sarah Mardhatillah</strong>
-                    </li>
-                    <li>
-                      <strong>Bank BCA</strong> <br />
-                      No. Rek:{" "}
-                      <span className="font-mono font-bold text-foreground">
-                        7001071231
-                      </span>{" "}
-                      <br />
-                      A.N: <strong>Oktaviani Putri</strong>
-                    </li>
                   </ul>
                 )}
               </div>
